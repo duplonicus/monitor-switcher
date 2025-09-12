@@ -131,10 +131,6 @@ The script uses a `config.json` file for easy customization. No need to edit the
     "monitorLog": "%USERPROFILE%\\SwapMonitorsLog.txt",
     "audioLog": "%USERPROFILE%\\SwapAudioLog.txt"
   },
-  "tools": {
-    "nircmd": "nircmd.exe",
-    "multiMonitorTool": "MultiMonitorTool.exe"
-  },
   "notifications": {
     "enabled": true,
     "monitorMessage": "Switched to Monitor {0}",
@@ -157,9 +153,6 @@ The script uses a `config.json` file for easy customization. No need to edit the
 - **`monitorLog`**: Path for monitor state log (supports environment variables)
 - **`audioLog`**: Path for audio state log (supports environment variables)
 
-#### Tool Executables
-- **`nircmd`**: NirCmd executable name (default: "nircmd.exe")
-- **`multiMonitorTool`**: MultiMonitorTool executable name (default: "MultiMonitorTool.exe")
 
 #### Notifications
 - **`enabled`**: Enable/disable console notifications (default: true)

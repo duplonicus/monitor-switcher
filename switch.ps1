@@ -24,16 +24,16 @@ if (!(Test-Path $logPath)) { Set-Content $logPath $config.monitors.primary }
 $lastMonitor = Get-Content $logPath
 $nextMonitor = if ($lastMonitor -eq $config.monitors.primary.ToString()) { $config.monitors.secondary } else { $config.monitors.primary }
 Set-Content $logPath $nextMonitor
-Start-Process $config.tools.nircmd -ArgumentList "setprimarydisplay $nextMonitor"
+Start-Process "nircmd.exe" -ArgumentList "setprimarydisplay $nextMonitor"
 if ($config.notifications.enabled) {
     Write-Host ($config.notifications.monitorMessage -f $nextMonitor)
 }
 
 # Move windows to primary monitor using MultiMonitorTool
 if ($nextMonitor -eq $config.monitors.secondary) {
-    Start-Process $config.tools.multiMonitorTool -ArgumentList "/MoveWindow $($config.monitors.secondary) All $($config.monitors.primary)" -Wait
+    Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow $($config.monitors.secondary) All $($config.monitors.primary)" -Wait
 } else {
-    Start-Process $config.tools.multiMonitorTool -ArgumentList "/MoveWindow $($config.monitors.primary) All $($config.monitors.secondary)" -Wait
+    Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow $($config.monitors.primary) All $($config.monitors.secondary)" -Wait
 }
 
 # Audio Toggle using NirCmd
@@ -41,13 +41,13 @@ if (!(Test-Path $audioLogPath)) { Set-Content $audioLogPath "device1" }
 $lastAudioDevice = Get-Content $audioLogPath
 
 if ($lastAudioDevice -eq "device1") {
-    Start-Process $config.tools.nircmd -ArgumentList "setdefaultsounddevice `"$($config.audio.device1)`" 1"
+    Start-Process "nircmd.exe" -ArgumentList "setdefaultsounddevice `"$($config.audio.device1)`" 1"
     Set-Content $audioLogPath "device2"
     if ($config.notifications.enabled) {
         Write-Host ($config.notifications.audioMessage -f $config.audio.device1)
     }
 } else {
-    Start-Process $config.tools.nircmd -ArgumentList "setdefaultsounddevice `"$($config.audio.device2)`" 1"
+    Start-Process "nircmd.exe" -ArgumentList "setdefaultsounddevice `"$($config.audio.device2)`" 1"
     Set-Content $audioLogPath "device1"
     if ($config.notifications.enabled) {
         Write-Host ($config.notifications.audioMessage -f $config.audio.device2)
