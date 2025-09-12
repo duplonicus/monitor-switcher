@@ -11,10 +11,6 @@
         "monitorLog": "%USERPROFILE%\\SwapMonitorsLog.txt",
         "audioLog": "%USERPROFILE%\\SwapAudioLog.txt"
     },
-    "tools": {
-        "nircmd": "nircmd.exe",
-        "multiMonitorTool": "MultiMonitorTool.exe"
-    },
     "notifications": {
         "enabled": true,
         "monitorMessage": "Switched to Monitor {0}",
