@@ -68,6 +68,33 @@ Run the script from PowerShell:
 ### Method 3: Double-click
 Double-click the `switch.ps1` script file in Windows Explorer.
 
+### Method 4: PowerShell Function (Convenient)
+Add a function to your PowerShell profile for easy command-line access:
+
+1. **Open your PowerShell profile**:
+   ```powershell
+   notepad $PROFILE
+   ```
+
+2. **Add this function**:
+   ```powershell
+   function switchmon {
+       & "$PSScriptRoot\switch.ps1"
+   }
+   ```
+
+3. **Save and reload**:
+   ```powershell
+   . $PROFILE
+   ```
+
+4. **Use the command**:
+   ```powershell
+   switchmon
+   ```
+
+**Note**: Replace `$PSScriptRoot` with the full path to your monitor_switcher folder if the function doesn't work from other directories.
+
 ## How It Works
 
 ### Monitor Switching
