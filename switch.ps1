@@ -10,7 +10,7 @@ Set-Content $logPath $nextMonitor
 Start-Process "nircmd.exe" -ArgumentList "setprimarydisplay $nextMonitor"
 Write-Host "Switched to Monitor $nextMonitor"
 
-# Move windows to primary monitor
+# Move windows to primary monitor using MultiMonitorTool
 if ($nextMonitor -eq "4") {
     Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow 4 All 1" -Wait
 } else {
