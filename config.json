@@ -1,0 +1,23 @@
+{
+    "monitors": {
+        "primary": 1,
+        "secondary": 4
+    },
+    "audio": {
+        "device1": "TV",
+        "device2": "Headphones"
+    },
+    "paths": {
+        "monitorLog": "%USERPROFILE%\\SwapMonitorsLog.txt",
+        "audioLog": "%USERPROFILE%\\SwapAudioLog.txt"
+    },
+    "tools": {
+        "nircmd": "nircmd.exe",
+        "multiMonitorTool": "MultiMonitorTool.exe"
+    },
+    "notifications": {
+        "enabled": true,
+        "monitorMessage": "Switched to Monitor {0}",
+        "audioMessage": "Switched to {0}"
+    }
+}
