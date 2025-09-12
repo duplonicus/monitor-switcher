@@ -12,35 +12,33 @@ A PowerShell script that toggles between primary monitors and audio devices, per
 
 ## Prerequisites
 
-- **NirCmd**: Download and install [NirCmd](https://www.nirsoft.net/utils/nircmd.html) from NirSoft
-- **MultiMonitorTool**: Download and install [MultiMonitorTool](https://www.nirsoft.net/utils/multi_monitor_tool.html) from NirSoft
 - **PowerShell**: Windows PowerShell (included with Windows)
 - **AutoHotkey v2** (Optional): Download and install [AutoHotkey v2](https://www.autohotkey.com/) for keyboard shortcuts
 - **Audio Devices**: Ensure your audio devices are named "TV" and "Headphones" in Windows audio settings
 
+**Note**: NirCmd and MultiMonitorTool are included in this repository - no additional downloads required! These tools are freeware and can be freely redistributed.
+
 ## Installation
 
-1. Download or clone this repository
-2. Install NirCmd and ensure `nircmd.exe` is in your system PATH or in the same directory as the script
-3. Install MultiMonitorTool and ensure `MultiMonitorTool.exe` is in your system PATH or in the same directory as the script
-4. Configure your audio devices:
+1. **Download or clone this repository**
+2. **Configure your audio devices**:
    - Open Windows Sound settings
-   - Rename your devices to "TV" and "Headphones" (or modify the script to match your device names)
+   - Rename your devices to "TV" and "Headphones" (or update `config.json` to match your device names)
+3. **Test the setup**:
+   ```powershell
+   .\switch.ps1
+   ```
 
-## MultiMonitorTool Setup
+That's it! All required tools are included in the repository.
 
-MultiMonitorTool is used to automatically move all windows to the new primary monitor when switching. Here's how to set it up:
+## How MultiMonitorTool Works
 
-### Download and Installation
-1. Download MultiMonitorTool from [NirSoft](https://www.nirsoft.net/utils/multi_monitor_tool.html)
-2. Extract the executable to a folder in your system PATH, or place it in the same directory as the script
-3. No installation required - it's a portable executable
+MultiMonitorTool is included in this repository and automatically moves all windows to the new primary monitor when switching:
 
-### How MultiMonitorTool Works in This Script
-- When switching to monitor 4: Moves all windows from monitor 1 to monitor 4
-- When switching to monitor 1: Moves all windows from monitor 4 to monitor 1
-- Uses the `/MoveWindow` command with "All" parameter to move all open windows
-- The `-Wait` parameter ensures the script waits for the window movement to complete
+- **When switching to monitor 4**: Moves all windows from monitor 1 to monitor 4
+- **When switching to monitor 1**: Moves all windows from monitor 4 to monitor 1
+- **Uses the `/MoveWindow` command** with "All" parameter to move all open windows
+- **The `-Wait` parameter** ensures the script waits for the window movement to complete
 
 ### Manual MultiMonitorTool Usage
 You can also use MultiMonitorTool manually for advanced window management:
@@ -212,8 +210,8 @@ The script uses a `config.json` file for easy customization. No need to edit the
 ## Troubleshooting
 
 ### General Issues
-- **"nircmd.exe not found"**: Ensure NirCmd is installed and in your PATH
-- **"MultiMonitorTool.exe not found"**: Ensure MultiMonitorTool is installed and in your PATH
+- **"nircmd.exe not found"**: Ensure `nircmd.exe` is in the same folder as `switch.ps1`
+- **"MultiMonitorTool.exe not found"**: Ensure `MultiMonitorTool.exe` is in the same folder as `switch.ps1`
 - **Audio device not switching**: Check that your audio devices are named exactly as configured in `config.json`
 - **Monitor not switching**: Verify the display numbers in `config.json` match your setup
 - **Windows not moving**: Check that MultiMonitorTool is properly installed and accessible
