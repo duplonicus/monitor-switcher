@@ -10,6 +10,13 @@ Set-Content $logPath $nextMonitor
 Start-Process "nircmd.exe" -ArgumentList "setprimarydisplay $nextMonitor"
 Write-Host "Switched to Monitor $nextMonitor"
 
+# Move windows to primary monitor
+if ($nextMonitor -eq "4") {
+    Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow 4 All 1" -Wait
+} else {
+    Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow 1 All 4" -Wait
+}
+
 # Audio Toggle using NirCmd
 $audioLogPath = "$env:USERPROFILE\SwapAudioLog.txt"
 if (!(Test-Path $audioLogPath)) { Set-Content $audioLogPath "device1" }
