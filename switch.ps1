@@ -8,6 +8,7 @@ $lastMonitor = Get-Content $logPath
 $nextMonitor = if ($lastMonitor -eq "1") { "4" } else { "1" }
 Set-Content $logPath $nextMonitor
 Start-Process "nircmd.exe" -ArgumentList "setprimarydisplay $nextMonitor"
+Write-Host "Switched to Monitor $nextMonitor"
 
 # Audio Toggle using NirCmd
 $audioLogPath = "$env:USERPROFILE\SwapAudioLog.txt"
@@ -17,7 +18,7 @@ $lastAudioDevice = Get-Content $audioLogPath
 if ($lastAudioDevice -eq "device1") {
     Start-Process "nircmd.exe" -ArgumentList 'setdefaultsounddevice "TV" 1'
     Set-Content $audioLogPath "device2"
-    Write-Host "Switched to Speakers"
+    Write-Host "Switched to Soundbar"
 } else {
     Start-Process "nircmd.exe" -ArgumentList 'setdefaultsounddevice "Headphones" 1'
     Set-Content $audioLogPath "device1" 
