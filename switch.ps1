@@ -30,11 +30,7 @@ if ($config.notifications.enabled) {
 }
 
 # Move windows to primary monitor using MultiMonitorTool
-if ($nextMonitor -eq $config.monitors.secondary) {
-    Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow $($config.monitors.secondary) All $($config.monitors.primary)" -Wait
-} else {
-    Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow $($config.monitors.primary) All $($config.monitors.secondary)" -Wait
-}
+Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow Primary All" -Wait
 
 # Audio Toggle using NirCmd
 if (!(Test-Path $audioLogPath)) { Set-Content $audioLogPath "device1" }
