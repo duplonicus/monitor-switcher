@@ -13,7 +13,7 @@
     },
     "notifications": {
         "enabled": true,
-        "monitorMessage": "Switched display to Monitor {0}",
+        "monitorMessage": "Switched display to monitor {0}",
         "audioMessage": "Switched audio device to {0}"
     }
 }
