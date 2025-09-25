@@ -31,6 +31,8 @@ if ($config.notifications.enabled) {
 
 # Move windows to primary monitor using MultiMonitorTool
 Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow Primary All" -Wait
+# Maximize windows with nircmd.exe
+# Start-Process "nircmd.exe" -ArgumentList "win max alltop" -Wait # I think this is the culprit for the strange display issues (windows not redrawing properly)
 
 # Audio Toggle using NirCmd
 if (!(Test-Path $audioLogPath)) { Set-Content $audioLogPath "device1" }
