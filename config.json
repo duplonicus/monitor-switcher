@@ -5,7 +5,7 @@
     },
     "audio": {
         "device1": "TV",
-        "device2": "Headphones"
+        "device2": "Speakers"
     },
     "paths": {
         "monitorLog": "%USERPROFILE%\\SwapMonitorsLog.txt",
