@@ -17,10 +17,10 @@ SetWorkingDir(A_ScriptDir)
     SetTimer(RemoveToolTip, 2000)
 }
 
-; Alternative hotkey: Ctrl+Alt+S (for "Switch")
+; Alternative hotkey: Ctrl+Alt+S (for "Switch") - Uses Task Scheduler for admin privileges
 ^!s:: {
-    Run('powershell.exe -ExecutionPolicy Bypass -File "switch.ps1"', , 'Hide')
-    ToolTip('Switching monitors and audio...')
+    Run('powershell.exe -ExecutionPolicy Bypass -File "admin_scheduled_task_switch.ps1"', , 'Hide')
+    ToolTip('Switching monitors and audio (elevated)...')
     SetTimer(RemoveToolTip, 2000)
 }
 

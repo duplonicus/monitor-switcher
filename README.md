@@ -200,6 +200,42 @@ The script uses a `config.json` file for easy customization. No need to edit the
 }
 ```
 
+## Admin Window Movement Fix
+
+If you notice that some windows (especially admin windows like Terminal, Task Manager, TreeSize) don't move when switching monitors, this is due to Windows security restrictions (UIPI). The solution is to run the script with elevated privileges using Task Scheduler.
+
+### One-Time Setup (Requires Admin)
+
+1. Open PowerShell as Administrator
+2. Navigate to the monitor_switcher directory
+3. Import the scheduled task:
+   ```powershell
+   schtasks /Create /XML "MonitorSwitcher-Task.xml" /TN "MonitorSwitcher"
+   ```
+
+### Usage After Setup
+
+Once configured, you can run the elevated version without UAC prompts:
+
+**From AutoHotkey**: The `Ctrl+Alt+S` hotkey in `switch.ahk` already uses the elevated method
+
+**From command line**:
+```powershell
+.\run-switch.ps1
+```
+
+**From a shortcut**: Create a shortcut to `run-switch.ps1` - no admin prompt needed!
+
+### Uninstall Task Scheduler Method
+```powershell
+schtasks /Delete /TN "MonitorSwitcher" /F
+```
+
+### Comparison of Methods
+
+- **Ctrl+Alt+M**: Uses original `switch.ps1` (may not move admin windows)
+- **Ctrl+Alt+S**: Uses `run-switch.ps1` via Task Scheduler (moves all windows including admin)
+
 ## Troubleshooting
 
 ### General Issues
@@ -208,6 +244,7 @@ The script uses a `config.json` file for easy customization. No need to edit the
 - **Audio device not switching**: Check that your audio devices are named exactly as configured in `config.json`
 - **Monitor not switching**: Verify the display numbers in `config.json` match your setup
 - **Windows not moving**: Check that MultiMonitorTool is properly installed and accessible
+- **Admin windows not moving**: Follow the "Admin Window Movement Fix" section above to set up Task Scheduler
 
 ### Configuration Issues
 - **"Configuration file not found"**: Ensure `config.json` is in the same directory as `switch.ps1`
