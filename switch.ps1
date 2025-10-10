@@ -24,7 +24,7 @@ if (!(Test-Path $logPath)) { Set-Content $logPath $config.monitors.primary }
 $lastMonitor = Get-Content $logPath
 $nextMonitor = if ($lastMonitor -eq $config.monitors.primary.ToString()) { $config.monitors.secondary } else { $config.monitors.primary }
 Set-Content $logPath $nextMonitor
-Start-Process "nircmd.exe" -ArgumentList "setprimarydisplay $nextMonitor"
+Start-Process "MultiMonitorTool.exe" -ArgumentList "/SetPrimary $nextMonitor" -Wait
 if ($config.notifications.enabled) {
     Write-Host ($config.notifications.monitorMessage -f $nextMonitor)
 }
