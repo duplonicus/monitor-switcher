@@ -8,8 +8,8 @@
         "device2": "Speakers"
     },
     "paths": {
-        "monitorLog": "%USERPROFILE%\\SwapMonitorsLog.txt",
-        "audioLog": "%USERPROFILE%\\SwapAudioLog.txt"
+        "monitorLog": ".\\SwapMonitorsLog.txt",
+        "audioLog": ".\\SwapAudioLog.txt"
     },
     "notifications": {
         "enabled": true,
