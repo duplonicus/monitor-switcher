@@ -1,7 +1,7 @@
 {
     "monitors": {
         "primary": 1,
-        "secondary": 4
+        "secondary": 2
     },
     "audio": {
         "device1": "TV",

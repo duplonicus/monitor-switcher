@@ -1,4 +1,5 @@
 # Get monitor names from WMI
+# Might not be accurate - use trial and error
 $MonitorNames = Get-WmiObject -Namespace root\wmi -ClassName WmiMonitorID | ForEach-Object {
     if ($_.UserFriendlyName) {
         [System.Text.Encoding]::ASCII.GetString($_.UserFriendlyName -ne 0)
