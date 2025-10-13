@@ -4,49 +4,43 @@ A PowerShell script that toggles between primary monitors and audio devices, per
 
 ## Features
 
-- **Monitor Toggle**: Switches primary display between monitor 1 and monitor 4
+- **Monitor Toggle**: Toggles primary display between chosen monitors
 - **Window Management**: Automatically moves all windows to the new primary monitor
-- **Audio Toggle**: Switches default audio device between "TV" and "Headphones"
+- **Audio Toggle**: Switches default audio device between chosen audio devices
 - **State Persistence**: Remembers the last selected monitor and audio device
 - **Simple Logging**: Uses text files to track current state
+- **Window Customizations**: Toggleable per-user window customizations for robust window management (must write you own nircmd.exe [commands](https://nircmd.nirsoft.net/win.html))
 
 ## Prerequisites
 
 - **PowerShell**: Windows PowerShell (included with Windows)
 - **AutoHotkey v2** (Optional): Download and install [AutoHotkey v2](https://www.autohotkey.com/) for keyboard shortcuts
-- **Audio Devices**: Ensure your audio devices are named "TV" and "Headphones" in Windows audio settings
+- **Audio Devices**: Ensure your audio device names match in `config.json` and in Windows audio settings
 
-**Note**: NirCmd and MultiMonitorTool are included in this repository - no additional downloads required! These tools are freeware and can be freely redistributed.
+**Note**: [NirCmd](https://www.nirsoft.net/utils/nircmd.html) and [MultiMonitorTool](https://www.nirsoft.net/utils/multi_monitor_tool.html) are included in this repository - no additional downloads required! These tools are freeware and can be freely redistributed.
 
 ## Installation
 
 1. **Download or clone this repository**
 2. **Configure your audio devices**:
    - Open Windows Sound settings
-   - Rename your devices to "TV" and "Headphones" (or update `config.json` to match your device names)
+   - Rename your devices to "TV" and "Speakers" (or update `config.json` to match your device names)
 3. **Test the setup**:
    ```powershell
    .\switch.ps1
    ```
+4. **Setup Scheduled Task (Optional)**:
+   - Run the following command from the project directory as Administrator:
+   ```powershell
+   schtasks /Create /XML "MonitorSwitcher-Task.xml" /TN "MonitorSwitcher"
+   ```
+   - This enables moving admin windows. See "Admin Window Movement Fix" section below for details.
+5. **Install AutoHotkey v2 (Optional)**:
+   - Download and install [AutoHotkey v2](https://www.autohotkey.com/)
+   - This enables keyboard shortcuts (Ctrl+Alt+M or Ctrl+Alt+S) to switch monitors
+   - See "AutoHotkey v2 Setup and Usage" section below for full details
 
-That's it! All required tools are included in the repository.
-
-## How MultiMonitorTool Works
-
-MultiMonitorTool is included in this repository and automatically moves all windows to the new primary monitor when switching:
-
-- **When switching to monitor 4**: Moves all windows from monitor 1 to monitor 4
-- **When switching to monitor 1**: Moves all windows from monitor 4 to monitor 1
-- **Uses the `/MoveWindow` command** with "All" parameter to move all open windows
-- **The `-Wait` parameter** ensures the script waits for the window movement to complete
-
-### Manual MultiMonitorTool Usage
-You can also use MultiMonitorTool manually for advanced window management:
-```cmd
-MultiMonitorTool.exe /MoveWindow [SourceMonitor] [WindowTitle] [TargetMonitor]
-MultiMonitorTool.exe /MoveWindow 1 "Notepad" 2
-MultiMonitorTool.exe /MoveWindow 1 All 2
-```
+That's it! All required tools (except AutoHotkey) are included in the repository.
 
 ## Usage
 
@@ -55,6 +49,7 @@ MultiMonitorTool.exe /MoveWindow 1 All 2
 2. Run `switch.ahk` by double-clicking it or running it from command line
 3. Press **Ctrl+Alt+M** or **Ctrl+Alt+S** to toggle monitors and audio
 4. The script will show a brief tooltip notification when switching
+5. Add a shortcut to `switch.ahk` in `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp` if you want it to run on startup
 
 ### Method 2: PowerShell
 Run the script from PowerShell:
@@ -77,7 +72,7 @@ Add a function to your PowerShell profile for easy command-line access:
 2. **Add this function**:
    ```powershell
    function switchmon {
-       & "$PSScriptRoot\switch.ps1"
+       & "\path\to\switch.ps1"
    }
    ```
 
@@ -91,25 +86,18 @@ Add a function to your PowerShell profile for easy command-line access:
    switchmon
    ```
 
-**Note**: Replace `$PSScriptRoot` with the full path to your monitor_switcher folder if the function doesn't work from other directories.
-
 ## How It Works
 
 ### Monitor Switching
-- Toggles between display 1 and display 4
-- Uses NirCmd's `setprimarydisplay` command
-- Automatically moves all windows to the new primary monitor using MultiMonitorTool
-- State is stored in `%USERPROFILE%\SwapMonitorsLog.txt`
+- Toggles between chosen displays in `config.json`
+- Uses MultiMonitorTool's `/SetPrimary` command
+- Automatically moves all windows to the new primary monitor using MultiMonitorTool's `/MoveWindow Primary All` command
+- State is stored in `./SwapMonitorsLog.txt` by default
 
 ### Audio Switching
 - Toggles between "TV" and "Headphones" audio devices
 - Uses NirCmd's `setdefaultsounddevice` command
-- State is stored in `%USERPROFILE%\SwapAudioLog.txt`
-
-### MultiMonitorTool Integration
-- Automatically moves all open windows to the new primary monitor
-- Uses MultiMonitorTool's `/MoveWindow` command with "All" parameter
-- Ensures seamless transition when switching between desk and TV setups
+- State is stored in `./SwapAudioLog.txt` by default
 
 ## Configuration
 
@@ -128,8 +116,8 @@ The script uses a `config.json` file for easy customization. No need to edit the
     "device2": "Headphones"
   },
   "paths": {
-    "monitorLog": "%USERPROFILE%\\SwapMonitorsLog.txt",
-    "audioLog": "%USERPROFILE%\\SwapAudioLog.txt"
+    "monitorLog": "/path/to/log/folder/SwapMonitorsLog.txt",
+    "audioLog": "/path/to/log/folder/SwapAudioLog.txt"
   },
   "notifications": {
     "enabled": true,
@@ -138,6 +126,8 @@ The script uses a `config.json` file for easy customization. No need to edit the
   }
 }
 ```
+
+**Note**: If your monitors don't seem to match Windows display settings, use `get_monitor_numbers.ps1` to get their actual numbers or use trial and error.
 
 ### Customization Options
 
@@ -158,6 +148,133 @@ The script uses a `config.json` file for easy customization. No need to edit the
 - **`enabled`**: Enable/disable console notifications (default: true)
 - **`monitorMessage`**: Message format for monitor switches (use {0} for monitor number)
 - **`audioMessage`**: Message format for audio switches (use {0} for device name)
+
+#### Window Customizations
+- **`enabled`**: Enable/disable per-user window customizations (default: true)
+   - Set this to `false` until you define your own customizations
+- **`rules`**: Array of customization rules that run when switching to the primary monitor
+
+### Per-User Window Customizations
+
+The window customizations feature allows you to automatically position specific windows at custom locations, sizes, or monitors when switching to your primary monitor (desk setup). This is perfect for multi-monitor setups where you want certain apps to always go to specific monitors.
+
+#### How It Works
+
+When you switch **to your primary monitor** (typically your desk setup), the customization rules run after all windows are moved to the primary display. Each rule can:
+1. Move a specific window to a different monitor
+2. Run custom NirCmd commands to resize, maximize, or reposition the window
+3. Or run any other arbirtrary PowerShell commands
+
+When you switch **to your secondary monitor** (typically your TV), all windows simply move to that monitor and are maximized with no customizations applied.
+
+#### Configuration Structure
+
+Each rule in the `windowCustomizations.rules` array requires:
+
+- **`findMethod`**: How to find the window
+  - `"Process"` - Find by process name (e.g., "Discord.exe")
+  - `"Title"` - Find by window title (e.g., "WhatsApp")
+- **`findValue`**: The process name or window title to match
+- **`monitor`**: Target monitor number to move the window to
+- **`command`** (optional): Additional PowerShell command to run for advanced customization
+
+#### Example Configuration
+
+```json
+{
+  "windowCustomizations": {
+    "enabled": true,
+    "rules": [
+      {
+        "findMethod": "Process",
+        "findValue": "Discord.exe",
+        "monitor": 3,
+        "command": "if ($customization.findValue -eq 'Discord.exe') { & nircmd.exe win max process 'Discord.exe'; & Write-Host 'Discord maximized' }"
+      },
+      {
+        "findMethod": "Title",
+        "findValue": "WhatsApp",
+        "monitor": 4,
+        "_comment": "if WhatsApp, make normal, activate, and resize to right half of screen",
+        "command": "if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp'; & nircmd.exe win activate ititle 'WhatsApp'; & nircmd.exe win setsize ititle 'WhatsApp' -1287 0 1294 1039; & Write-Host 'WhatsApp snapped to right' }"
+      }
+    ]
+  }
+}
+```
+
+#### Common Use Cases
+
+**Move Discord to a specific monitor:**
+```json
+{
+  "findMethod": "Process",
+  "findValue": "Discord.exe",
+  "monitor": 3
+}
+```
+
+**Move and maximize Spotify:**
+```json
+{
+  "findMethod": "Process",
+  "findValue": "Spotify.exe",
+  "monitor": 4,
+  "command": "if ($customization.findValue -eq 'Spotify.exe') { & nircmd.exe win max process 'Spotify.exe' }"
+}
+```
+
+**Snap a window to the right half of the screen:**
+```json
+{
+  "findMethod": "Title",
+  "findValue": "WhatsApp",
+  "monitor": 4,
+  "command": "if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp'; & nircmd.exe win setsize ititle 'WhatsApp' -1287 0 1294 1039 }"
+}
+```
+
+#### NirCmd Commands Reference
+
+The `command` field supports any NirCmd window commands. **Important**: Always wrap commands in an `if` statement that checks `$customization.findValue` to ensure the command only applies to the intended window.
+
+Common command patterns:
+
+- **Maximize**:
+  ```powershell
+  if ($customization.findValue -eq 'Discord.exe') { & nircmd.exe win max process 'Discord.exe' }
+  ```
+- **Minimize**:
+  ```powershell
+  if ($customization.findValue -eq 'Spotify.exe') { & nircmd.exe win min process 'Spotify.exe' }
+  ```
+- **Normal/Restore**:
+  ```powershell
+  if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp' }
+  ```
+- **Activate/Focus**:
+  ```powershell
+  if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win activate ititle 'WhatsApp' }
+  ```
+- **Resize**:
+  ```powershell
+  if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win setsize ititle 'WhatsApp' x y width height }
+  ```
+- **Multiple commands** (chain with semicolons):
+  ```powershell
+  if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp'; & nircmd.exe win activate ititle 'WhatsApp'; & nircmd.exe win setsize ititle 'WhatsApp' -1287 0 1294 1039 }
+  ```
+
+For more NirCmd commands, see the [NirCmd documentation](https://nircmd.nirsoft.net/move_window.html).
+
+#### Tips
+
+- **Use `_comment` fields**: Add comments to your rules for documentation (they're ignored by the script)
+- **Test your commands**: Run NirCmd commands manually first to get the right coordinates
+- **Find process names**: Use Task Manager to find the exact process name
+- **Find window titles**: Check in MultiMonitorTool GUI
+- **Disable temporarily**: Set `"enabled": false` to disable all customizations without deleting rules
+- **Order matters**: Rules run in the order they appear in the array
 
 ### Quick Setup Examples
 
@@ -217,14 +334,12 @@ If you notice that some windows (especially admin windows like Terminal, Task Ma
 
 Once configured, you can run the elevated version without UAC prompts:
 
-**From AutoHotkey**: The `Ctrl+Alt+S` hotkey in `switch.ahk` already uses the elevated method
+**From AutoHotkey**: The `Ctrl+Alt+S` hotkey in `switch.ahk` already uses the elevated method by calling `admin_scheduled_task_switch.ps1` which in turn calls the scheduled task
 
 **From command line**:
 ```powershell
-.\run-switch.ps1
+.\admin_scheduled_task_switch.ps1
 ```
-
-**From a shortcut**: Create a shortcut to `run-switch.ps1` - no admin prompt needed!
 
 ### Uninstall Task Scheduler Method
 ```powershell
@@ -234,7 +349,7 @@ schtasks /Delete /TN "MonitorSwitcher" /F
 ### Comparison of Methods
 
 - **Ctrl+Alt+M**: Uses original `switch.ps1` (may not move admin windows)
-- **Ctrl+Alt+S**: Uses `run-switch.ps1` via Task Scheduler (moves all windows including admin)
+- **Ctrl+Alt+S**: Uses `admin_scheduled_task_switch.ps1` via Task Scheduler (moves all windows including admin)
 
 ## Troubleshooting
 
@@ -243,7 +358,6 @@ schtasks /Delete /TN "MonitorSwitcher" /F
 - **"MultiMonitorTool.exe not found"**: Ensure `MultiMonitorTool.exe` is in the same folder as `switch.ps1`
 - **Audio device not switching**: Check that your audio devices are named exactly as configured in `config.json`
 - **Monitor not switching**: Verify the display numbers in `config.json` match your setup
-- **Windows not moving**: Check that MultiMonitorTool is properly installed and accessible
 - **Admin windows not moving**: Follow the "Admin Window Movement Fix" section above to set up Task Scheduler
 
 ### Configuration Issues
@@ -260,7 +374,7 @@ schtasks /Delete /TN "MonitorSwitcher" /F
 
 ## Files Created
 
-The script creates two log files in your user profile directory:
+The script creates two log files in the project root directory:
 - `SwapMonitorsLog.txt` - Tracks current monitor state
 - `SwapAudioLog.txt` - Tracks current audio device state
 
@@ -275,7 +389,8 @@ The included `switch.ahk` script provides convenient keyboard shortcuts for moni
 
 ### Hotkeys
 - **Ctrl+Alt+M**: Toggle monitors and audio (primary shortcut)
-- **Ctrl+Alt+S**: Toggle monitors and audio (alternative shortcut)
+- **Ctrl+Alt+S**: Toggle monitors and audio (scheduled task)
+   - Feel free to edit these to your liking in `switch.ahk`
 
 ### Features
 - **Background Execution**: Runs the PowerShell script without visible windows
@@ -314,24 +429,7 @@ switch.ahk
 4. Name it "Monitor Switcher" and click Finish
 5. The script will now start automatically with Windows
 
-#### Method 2: Task Scheduler (Advanced)
-1. Press `Win + R`, type `taskschd.msc`, press Enter
-2. Click "Create Basic Task" in the right panel
-3. Name it "Monitor Switcher"
-4. Set trigger to "When the computer starts"
-5. Set action to "Start a program"
-6. Browse to `switch.ahk` file
-7. Check "Run with highest privileges" if needed
-8. Click Finish
-
-#### Method 3: Registry (Power Users)
-1. Press `Win + R`, type `regedit`, press Enter
-2. Navigate to: `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`
-3. Right-click → New → String Value
-4. Name it "MonitorSwitcher"
-5. Set value to the full path of `switch.ahk` (e.g., `C:\path\to\switch.ahk`)
-
-### Managing the Script
+### Managing the AutoHotKey Script
 
 #### System Tray
 - **Icon**: Look for the AutoHotkey icon in the system tray
@@ -342,25 +440,6 @@ switch.ahk
 - **Reload**: Right-click tray icon → Reload Script (useful after editing)
 - **Pause**: Right-click tray icon → Pause Script (temporarily disable hotkeys)
 - **Edit**: Right-click tray icon → Edit Script (opens in default editor)
-
-### Troubleshooting AutoHotkey
-
-#### Common Issues
-- **"Script not running"**: Ensure AutoHotkey v2 is installed and `switch.ahk` is not corrupted
-- **"Hotkeys not working"**: Check if another program is using the same hotkeys
-- **"Script won't start"**: Verify file permissions and that the script path is correct
-- **"PowerShell errors"**: Ensure the PowerShell script is in the same directory as `switch.ahk`
-
-#### Debugging
-- **Check tray icon**: Look for AutoHotkey icon in system tray
-- **Test hotkeys**: Press Ctrl+Alt+M or Ctrl+Alt+S to test functionality
-- **View errors**: Right-click tray icon → View Error Log (if available)
-- **Manual test**: Run the PowerShell script directly to verify it works
-
-#### Performance Tips
-- **Startup delay**: If script loads slowly, add a small delay in Task Scheduler
-- **Multiple instances**: The script prevents multiple copies, but check Task Manager if issues persist
-- **Antivirus**: Some antivirus software may block AutoHotkey scripts; add exception if needed
 
 ## License
 
