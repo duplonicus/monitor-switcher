@@ -19,8 +19,8 @@ try {
 $logPath = [System.Environment]::ExpandEnvironmentVariables($config.paths.monitorLog)
 $audioLogPath = [System.Environment]::ExpandEnvironmentVariables($config.paths.audioLog)
 
-# Maximize all windows to ensure there are no minimize windows or they won't move
-Start-Process "nircmd.exe" -ArgumentList "win togglemax alltopnodesktop" -Wait
+# Maximize all windows to ensure there are no minimize windows or they won't move due to how Windows handles the restore/normal state
+Start-Process "nircmd.exe" -ArgumentList "win max alltopnodesktop" -Wait
 
 # Monitor Toggle using NirCmd
 if (!(Test-Path $logPath)) { Set-Content $logPath $config.monitors.primary }
@@ -35,6 +35,9 @@ if ($config.notifications.enabled) {
 # Move windows to primary monitor using MultiMonitorTool
 Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow Primary All" -Wait
 
+# Maximize all windows again to ensure they fill the screen in case of different resolutions or scaling
+Start-Process "nircmd.exe" -ArgumentList "win max alltopnodesktop" -Wait
+
 # Per user window customizations
 # Allows you to position specific windows at custom locations/sizes
 # When switching to the TV, move all windows
@@ -43,16 +46,13 @@ if ($config.windowCustomizations.enabled -and $nextMonitor -eq $config.monitors.
     foreach ($customization in $config.windowCustomizations.rules) {
         # Move specified apps to specified monitors
         MultiMonitorTool.exe /MoveWindow $customization.monitor $customization.findMethod $customization.findValue -Wait
-        # Script block to run additional customizations command defined in config, e.g. resizing windows
+        # Script block to run additional customization command defined in config, e.g. resizing windows
         if ($customization.command) {
             $sb = [ScriptBlock]::Create($customization.command)
             & $sb
             }
     }
 }
-
-# Maximize all windows again to ensure they fill the screen in case of different resolutions or scaling
-Start-Process "nircmd.exe" -ArgumentList "win togglemax alltopnodesktop" -Wait
 
 # Audio Toggle using NirCmd
 if (!(Test-Path $audioLogPath)) { Set-Content $audioLogPath "device1" }
