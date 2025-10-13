@@ -31,7 +31,7 @@ RemoveToolTip() {
 }
 
 ; Show help message on startup
-ToolTip('Monitor Switcher loaded! Press Ctrl+Alt+M or Ctrl+Alt+S to switch monitors')
+ToolTip('Monitor Switcher loaded! Press Ctrl+Alt+M or Ctrl+Alt+S (admin scheduled task) to switch monitors')
 SetTimer(RemoveStartupToolTip, 3000)
 
 RemoveStartupToolTip() {
