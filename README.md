@@ -265,7 +265,7 @@ Common command patterns:
   if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp'; & nircmd.exe win activate ititle 'WhatsApp'; & nircmd.exe win setsize ititle 'WhatsApp' -1287 0 1294 1039 }
   ```
 
-For more NirCmd commands, see the [NirCmd documentation](https://nircmd.nirsoft.net/move_window.html).
+For more NirCmd commands, see the [NirCmd documentation](https://nircmd.nirsoft.net/win.html).
 
 #### Tips
 
