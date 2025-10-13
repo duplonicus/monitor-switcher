@@ -19,6 +19,9 @@ try {
 $logPath = [System.Environment]::ExpandEnvironmentVariables($config.paths.monitorLog)
 $audioLogPath = [System.Environment]::ExpandEnvironmentVariables($config.paths.audioLog)
 
+# Maximize all windows to ensure there are no minimize windows or they won't move
+Start-Process "nircmd.exe" -ArgumentList "win togglemax alltopnodesktop" -Wait
+
 # Monitor Toggle using NirCmd
 if (!(Test-Path $logPath)) { Set-Content $logPath $config.monitors.primary }
 $lastMonitor = Get-Content $logPath
@@ -31,8 +34,9 @@ if ($config.notifications.enabled) {
 
 # Move windows to primary monitor using MultiMonitorTool
 Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow Primary All" -Wait
-# Maximize windows with nircmd.exe
-# Start-Process "nircmd.exe" -ArgumentList "win max alltop" -Wait # I think this is the culprit for the strange display issues (windows not redrawing properly)
+
+# Maximize all windows again to ensure they fill the screen in case of different resolutions or scaling
+Start-Process "nircmd.exe" -ArgumentList "win togglemax alltopnodesktop" -Wait
 
 # Audio Toggle using NirCmd
 if (!(Test-Path $audioLogPath)) { Set-Content $audioLogPath "device1" }
