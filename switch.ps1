@@ -35,6 +35,22 @@ if ($config.notifications.enabled) {
 # Move windows to primary monitor using MultiMonitorTool
 Start-Process "MultiMonitorTool.exe" -ArgumentList "/MoveWindow Primary All" -Wait
 
+# Per user window customizations
+# Allows you to position specific windows at custom locations/sizes
+# When switching to the TV, move all windows
+# When switch to the desk, move some windows to other monitors
+if ($config.windowCustomizations.enabled -and $nextMonitor -eq $config.monitors.primary) {
+    foreach ($customization in $config.windowCustomizations.rules) {
+        # Move specified apps to specified monitors
+        MultiMonitorTool.exe /MoveWindow $customization.monitor $customization.findMethod $customization.findValue -Wait
+        # Script block to run additional customizations command defined in config, e.g. resizing windows
+        if ($customization.command) {
+            $sb = [ScriptBlock]::Create($customization.command)
+            & $sb
+            }
+    }
+}
+
 # Maximize all windows again to ensure they fill the screen in case of different resolutions or scaling
 Start-Process "nircmd.exe" -ArgumentList "win togglemax alltopnodesktop" -Wait
 
@@ -42,6 +58,7 @@ Start-Process "nircmd.exe" -ArgumentList "win togglemax alltopnodesktop" -Wait
 if (!(Test-Path $audioLogPath)) { Set-Content $audioLogPath "device1" }
 $lastAudioDevice = Get-Content $audioLogPath
 
+# Toggle between two audio devices
 if ($lastAudioDevice -eq "device1") {
     Start-Process "nircmd.exe" -ArgumentList "setdefaultsounddevice `"$($config.audio.device1)`" 1"
     Set-Content $audioLogPath "device2"

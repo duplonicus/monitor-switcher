@@ -15,5 +15,21 @@
         "enabled": true,
         "monitorMessage": "Switched display to monitor {0}",
         "audioMessage": "Switched audio device to {0}"
+    },
+    "windowCustomizations": {
+        "enabled": true,
+        "rules": [
+            {
+                "findMethod": "Process",
+                "findValue": "Discord.exe",
+                "monitor": 3
+            },
+            {
+                "findMethod": "Title",
+                "findValue": "WhatsApp",
+                "monitor": 4,
+                "command": "if ($customization.findValue -eq 'WhatsApp') { Write-Host 'Custom command for WhatsApp'  }"
+            }
+        ]
     }
 }
