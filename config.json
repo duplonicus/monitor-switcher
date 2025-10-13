@@ -8,8 +8,8 @@
         "device2": "Speakers"
     },
     "paths": {
-        "monitorLog": ".\\SwapMonitorsLog.txt",
-        "audioLog": ".\\SwapAudioLog.txt"
+        "monitorLog": "./SwapMonitorsLog.txt",
+        "audioLog": "./SwapAudioLog.txt"
     },
     "notifications": {
         "enabled": true,
@@ -22,13 +22,15 @@
             {
                 "findMethod": "Process",
                 "findValue": "Discord.exe",
-                "monitor": 3
+                "monitor": 3,
+                "command": "if ($customization.findValue -eq 'Discord.exe') { & nircmd.exe win max process 'Discord.exe'; & Write-Host 'Discord maximized' }"
             },
             {
                 "findMethod": "Title",
                 "findValue": "WhatsApp",
                 "monitor": 4,
-                "command": "if ($customization.findValue -eq 'WhatsApp') { Write-Host 'Custom command for WhatsApp'  }"
+                "_comment":"if WhatsApp, make normal, activate, and resize to right half of screen",
+                "command": "if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp'; & nircmd.exe win activate ititle 'WhatsApp'; & nircmd.exe win setsize ititle 'WhatsApp' -1287 0 1294 1039; & Write-Host 'WhatsApp snapped to right' }"
             }
         ]
     }
