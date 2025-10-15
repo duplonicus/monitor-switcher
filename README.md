@@ -441,6 +441,12 @@ switch.ahk
 - **Pause**: Right-click tray icon → Pause Script (temporarily disable hotkeys)
 - **Edit**: Right-click tray icon → Edit Script (opens in default editor)
 
+### Known Issues
+- Taskbar dissapears on previous monitor:
+   - Not an issue with nircmd.exe
+   - Current workaround is to end explorer process (toggleable in `config.json`)
+   - If there is a better way to redraw the taskbar while preserving opened explorer windows, please open an issue to let me know how
+
 ## License
 
 This project is open source and available under the MIT License.

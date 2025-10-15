@@ -54,9 +54,10 @@ if ($config.windowCustomizations.enabled -and $nextMonitor -eq $config.monitors.
     }
 }
 
-# Audio Toggle using NirCmd
-if (!(Test-Path $audioLogPath)) { Set-Content $audioLogPath "device1" }
-$lastAudioDevice = Get-Content $audioLogPath
+# Close and restart explorer to redraw taskbar correctly on the previous monitor(s)
+if ($config.redrawTaskbar.enabled) {
+    Stop-Process -Name 'explorer' -Force
+}
 
 # Toggle between two audio devices
 if ($lastAudioDevice -eq "device1") {
