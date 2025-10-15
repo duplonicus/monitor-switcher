@@ -35,6 +35,20 @@
                 "monitor": 4,
                 "_comment":"if WhatsApp, make normal, activate, and resize to right half of screen",
                 "command": "if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp'; & nircmd.exe win activate ititle 'WhatsApp'; & nircmd.exe win setsize ititle 'WhatsApp' -1287 0 1294 1039; & Write-Host 'WhatsApp snapped to right' }"
+            },
+            {
+                "findMethod": "Title",
+                "findValue": "Windows PowerShell",
+                "monitor": 1,
+                "_comment":"",
+                "command": "if ($customization.findValue -eq 'Windows PowerShell') { & nircmd.exe win normal ititle 'Windows PowerShell'; & Write-Host 'PowerShell window normal' }"
+            },
+            {
+                "findMethod": "Class",
+                "findValue": "CabinetWClass",
+                "monitor": 1,
+                "_comment":"",
+                "command": "if ($customization.findValue -eq 'CabinetWClass') { & nircmd.exe win normal etitle 'File Explorer'; & Write-Host 'File Explorer window normal' }"
             }
         ]
     }
