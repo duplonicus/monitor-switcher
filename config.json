@@ -17,7 +17,7 @@
         "audioMessage": "Switched audio device to {0}"
     },
     "redrawTaskbar": {
-        "_comment": "Set to true if taskbar does not redraw correctly after monitor swap - will close open explorer windows",
+        "_comment": "Set to true if taskbar does not redraw correctly after monitor swap",
         "enabled": true
     },
     "windowCustomizations": {
