@@ -54,7 +54,7 @@ if ($config.windowCustomizations.enabled -and $nextMonitor -eq $config.monitors.
     }
 }
 
-# Close and restart explorer to redraw taskbar correctly on the previous monitor(s)
+# Redraw taskbar if enabled in config
 if ($config.redrawTaskbar.enabled) {
     & ./redraw_taskbar.ps1
 }
