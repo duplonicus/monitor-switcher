@@ -56,7 +56,7 @@ if ($config.windowCustomizations.enabled -and $nextMonitor -eq $config.monitors.
 
 # Close and restart explorer to redraw taskbar correctly on the previous monitor(s)
 if ($config.redrawTaskbar.enabled) {
-    Stop-Process -Name 'explorer' -Force
+    & ./redraw_taskbar.ps1
 }
 
 # Toggle between two audio devices
