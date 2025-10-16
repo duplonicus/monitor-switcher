@@ -17,7 +17,7 @@ try {
 
 # Expand environment variables in paths
 $logPath = [System.Environment]::ExpandEnvironmentVariables($config.paths.monitorLog)
-$audioLogPath = [System.Environment]::ExpandEnvironmentVariables($config.paths.audioLog)
+# $audioLogPath = [System.Environment]::ExpandEnvironmentVariables($config.paths.audioLog)
 
 # Maximize all windows to ensure there are no minimize windows or they won't move due to how Windows handles the restore/normal state
 Start-Process "nircmd.exe" -ArgumentList "win max alltopnodesktop" -Wait
@@ -60,15 +60,13 @@ if ($config.redrawTaskbar.enabled) {
 }
 
 # Toggle between two audio devices
-if ($lastAudioDevice -eq "device1") {
+if ($nextMonitor -eq $config.monitors.primary) {
     Start-Process "nircmd.exe" -ArgumentList "setdefaultsounddevice `"$($config.audio.device1)`" 1"
-    Set-Content $audioLogPath "device2"
     if ($config.notifications.enabled) {
         Write-Host ($config.notifications.audioMessage -f $config.audio.device1)
     }
 } else {
     Start-Process "nircmd.exe" -ArgumentList "setdefaultsounddevice `"$($config.audio.device2)`" 1"
-    Set-Content $audioLogPath "device1"
     if ($config.notifications.enabled) {
         Write-Host ($config.notifications.audioMessage -f $config.audio.device2)
     }
