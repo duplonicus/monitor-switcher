@@ -4,12 +4,11 @@
         "secondary": 2
     },
     "audio": {
-        "device1": "TV",
-        "device2": "Speakers"
+        "device1": "Speakers",
+        "device2": "TV"
     },
     "paths": {
-        "monitorLog": "./SwapMonitorsLog.txt",
-        "audioLog": "./SwapAudioLog.txt"
+        "monitorLog": "./SwapMonitorsLog.txt"
     },
     "notifications": {
         "enabled": true,
