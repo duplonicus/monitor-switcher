@@ -24,6 +24,13 @@ SetWorkingDir(A_ScriptDir)
     SetTimer(RemoveToolTip, 2000)
 }
 
+; Ctrl+Alt+X: turn monitors off (PC keeps running). Move mouse to wake.
+^!x:: {
+    Run('nircmd.exe monitor off', , 'Hide')
+    ToolTip('Monitors off')
+    SetTimer(RemoveToolTip, 1500)
+}
+
 ; Remove the tooltip after 2 seconds
 RemoveToolTip() {
     ToolTip()
@@ -31,7 +38,7 @@ RemoveToolTip() {
 }
 
 ; Show help message on startup
-ToolTip('Monitor Switcher loaded! Press Ctrl+Alt+M or Ctrl+Alt+S (admin scheduled task) to switch monitors')
+ToolTip('Monitor Switcher loaded! Press Ctrl+Alt+M or Ctrl+Alt+S (admin scheduled task) to switch monitors, Ctrl+Alt+X to blank monitors')
 SetTimer(RemoveStartupToolTip, 3000)
 
 RemoveStartupToolTip() {
