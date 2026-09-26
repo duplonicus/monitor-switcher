@@ -8,9 +8,16 @@
         "Or run:           .\\switch-v2.ps1 -DryRun   which logs every monitor it can see."
     ],
     "modes": {
-        "desk":  { "monitor": "AOC2401", "audio": "Speakers", "defaultPlace": "keep" },
-        "couch": { "monitor": "MST0030", "audio": "TV",       "defaultPlace": "max"  }
+        "desk":  { "monitor": "AOC2401", "audio": { "monitor": "AOC2401" }, "defaultPlace": "keep" },
+        "couch": { "monitor": "MST0030", "audio": { "monitor": "MST0030" }, "defaultPlace": "max"  }
     },
+    "_audio": [
+        "audio is resolved by MONITOR: the display-audio endpoint that shares the monitor's PnP container ID.",
+        "That survives Windows resetting endpoint names on driver installs. Alternatives, in fallback order:",
+        "{ \"id\": \"{0.0.0.00000000}.{...}\" }, { \"topology\": \"topo04\" } (GPU port), { \"name\": \"TV\" } (editable name, last resort).",
+        "See them all with:  .\\switch-v2.ps1 -ListAudio"
+    ],
+    "audioRoles": [0, 1, 2],
     "fallbackMode": "desk",
     "_place_values": "keep = preserve minimized/maximized/normal | normal | max | min | left | right (half of the destination work area)",
     "rules": [

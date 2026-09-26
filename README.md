@@ -35,6 +35,7 @@ v2 fixes the design, not just the numbers:
 | DPI-unaware coordinates (the 125 % monitor is virtualised) | per-monitor-v2 DPI aware, physical pixels |
 | no log | `logs\switch-YYYY-MM-DD.log` every run, plus a tray balloon with the result |
 | second press while running = two racing scripts | mutex: the second press is ignored and logged |
+| audio device by its editable name, via nircmd, no error if the name matches nothing | audio **by monitor**: the display-audio endpoint sharing the monitor's PnP container ID, set natively for all three roles and read back; names are reset by Windows on driver installs, so they are a last-resort fallback only |
 
 ### Setup
 
@@ -44,7 +45,10 @@ v2 fixes the design, not just the numbers:
    .\MultiMonitorTool.exe /scomma monitors.csv   # columns: Name, Short Monitor ID, Monitor Serial Number
    ```
 2. Put them in `config-v2.json` (`modes.desk.monitor`, `modes.couch.monitor`, and `rules[].monitor`).
-   The `audio` values are the Windows sound-device names, as in v1.
+   `audio` is `{ "monitor": "<ID>" }` for audio that comes out of a monitor (HDMI/DP audio, or headphones
+   plugged into a monitor's jack). `.\switch-v2.ps1 -ListAudio` shows every active playback endpoint with
+   the monitor it belongs to. For a non-monitor device use `{ "id": ... }` or `{ "topology": ... }` from that
+   listing; `{ "name": ... }` also works but Windows resets names on driver installs.
 3. Register the elevated task once, from an **admin** shell in this folder (needed only so admin
    windows such as an elevated Terminal or Task Manager move too):
    ```powershell
@@ -60,8 +64,10 @@ v2 fixes the design, not just the numbers:
 
 ### `config-v2.json`
 
-- `modes.desk` / `modes.couch`: `monitor` (ID), `audio` (device name), `defaultPlace` for windows
-  with no rule: `keep` (preserve min/max/normal), `normal`, `max`, `min`, `left`, `right`.
+- `modes.desk` / `modes.couch`: `monitor` (ID), `audio` (`{ "monitor": ID }`, or `id` / `topology` / `name`),
+  `defaultPlace` for windows with no rule: `keep` (preserve min/max/normal), `normal`, `max`, `min`, `left`, `right`.
+- `audioRoles`: which default roles to set; `[0, 1, 2]` = console, multimedia, communications (what the
+  Settings app sets). Drop `2` if you want calls to stay on one device.
 - `fallbackMode`: used when the current primary is neither desk nor couch.
 - `rules[]`: first match wins. `when` (`desk`/`couch`/omit for both), `match` with any of
   `process` (`Discord.exe`), `class` (`CabinetWClass`), `title` (substring), optional `monitor`
@@ -76,6 +82,7 @@ v2 fixes the design, not just the numbers:
 .\switch-v2.ps1              # toggle: desk -> couch or couch -> desk, from the live primary
 .\switch-v2.ps1 -To desk     # force a direction, or re-apply the desk layout without switching
 .\switch-v2.ps1 -DryRun      # plan only
+.\switch-v2.ps1 -ListAudio   # active playback endpoints, each with the monitor it belongs to
 ```
 
 ### What the log tells you when something does not move

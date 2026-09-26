@@ -17,6 +17,10 @@
         window's minimized / maximized / normal state. Nothing is maximized just to make it movable.
       * Every move is verified against the monitor the window actually landed on, retried once,
         and failures are logged with a reason (e.g. elevated window from a non-elevated run).
+      * Audio is selected by MONITOR, not by device name: a display-audio endpoint carries the same
+        PnP container ID as the monitor it belongs to, so "the audio of AOC2401" survives the renames
+        Windows does on every driver install. Set natively (IPolicyConfig) for all three roles and
+        read back to confirm. Names and endpoint IDs remain available as explicit fallbacks.
       * Every run writes logs\switch-YYYY-MM-DD.log so "sometimes" leaves evidence.
 
     Elevated (admin) windows can only be moved by an elevated process. Register the scheduled task
@@ -29,16 +33,21 @@
     Force a direction ('desk' or 'couch') instead of toggling from the current primary.
     Also useful to re-apply the layout without switching.
 
+.PARAMETER ListAudio
+    List the active playback endpoints with the monitor each belongs to, then exit.
+
 .EXAMPLE
     .\switch-v2.ps1 -DryRun
     .\switch-v2.ps1
     .\switch-v2.ps1 -To desk
+    .\switch-v2.ps1 -ListAudio
 #>
 [CmdletBinding()]
 param(
     [switch]$DryRun,
     [ValidateSet('desk', 'couch')]
-    [string]$To
+    [string]$To,
+    [switch]$ListAudio
 )
 
 $ErrorActionPreference = 'Stop'
@@ -132,6 +141,86 @@ try {
     elseif ([Native]::SetProcessDPIAware()) { $dpiMode = 'system' }
 } catch { if ([Native]::SetProcessDPIAware()) { $dpiMode = 'system' } }
 
+# ---------------------------------------------------------------- audio (native)
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Collections.Generic;
+namespace SwitcherAudio {
+    [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] public class MMDeviceEnumeratorCom {}
+    [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IMMDeviceEnumerator {
+        [PreserveSig] int EnumAudioEndpoints(int dataFlow, int stateMask, out IMMDeviceCollection devices);
+        [PreserveSig] int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice device);
+    }
+    [ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IMMDeviceCollection { [PreserveSig] int GetCount(out uint count); [PreserveSig] int Item(uint index, out IMMDevice device); }
+    [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IMMDevice {
+        [PreserveSig] int Activate(ref Guid iid, int clsCtx, IntPtr p, out IntPtr iface);
+        [PreserveSig] int OpenPropertyStore(int access, out IPropertyStore ps);
+        [PreserveSig] int GetId([MarshalAs(UnmanagedType.LPWStr)] out string id);
+        [PreserveSig] int GetState(out int state);
+    }
+    [StructLayout(LayoutKind.Sequential)] public struct PROPERTYKEY { public Guid fmtid; public uint pid; }
+    [StructLayout(LayoutKind.Sequential)] public struct PROPVARIANT { public ushort vt; public ushort r1, r2, r3; public IntPtr p; public IntPtr p2; }
+    [ComImport, Guid("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IPropertyStore {
+        [PreserveSig] int GetCount(out uint c); [PreserveSig] int GetAt(uint i, out PROPERTYKEY k);
+        [PreserveSig] int GetValue(ref PROPERTYKEY k, out PROPVARIANT v); [PreserveSig] int SetValue(ref PROPERTYKEY k, ref PROPVARIANT v); [PreserveSig] int Commit();
+    }
+    // IPolicyConfig is undocumented but has been stable since Windows 7; it is what the Settings app,
+    // nircmd, SoundSwitch and AudioDeviceCmdlets all use to change the default endpoint.
+    [ComImport, Guid("870af99c-171d-4f9e-af0d-e63df40c2bc9")] public class PolicyConfigClientCom {}
+    [ComImport, Guid("f8679f50-850a-41cf-9c72-430f290290c8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IPolicyConfig {
+        [PreserveSig] int GetMixFormat(string id, out IntPtr f); [PreserveSig] int GetDeviceFormat(string id, int d, out IntPtr f); [PreserveSig] int ResetDeviceFormat(string id);
+        [PreserveSig] int SetDeviceFormat(string id, IntPtr a, IntPtr b); [PreserveSig] int GetProcessingPeriod(string id, int d, out long a, out long b); [PreserveSig] int SetProcessingPeriod(string id, ref long p);
+        [PreserveSig] int GetShareMode(string id, out IntPtr m); [PreserveSig] int SetShareMode(string id, IntPtr m); [PreserveSig] int GetPropertyValue(string id, int s, ref PROPERTYKEY k, out PROPVARIANT v);
+        [PreserveSig] int SetPropertyValue(string id, int s, ref PROPERTYKEY k, ref PROPVARIANT v);
+        [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, int role);
+        [PreserveSig] int SetEndpointVisibility(string id, int v);
+    }
+    public class Endpoint {
+        public string Id; public string Name; public string Adapter; public int FormFactor; public string ContainerId; public string Topology;
+        public bool DefaultConsole; public bool DefaultMultimedia; public bool DefaultCommunications;
+    }
+    public static class Api {
+        [DllImport("ole32.dll")] static extern int PropVariantClear(ref PROPVARIANT v);
+        static readonly Guid PKEY_Device          = new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"); // ,2 name (user-editable)
+        static readonly Guid PKEY_DeviceInterface = new Guid("026e516e-b814-414b-83cd-856d6fef4822"); // ,2 adapter
+        static readonly Guid PKEY_ContainerId     = new Guid("8c7ed206-3f8a-4827-b3ab-ae9e1faefc6c"); // ,2 same as the monitor's
+        static readonly Guid PKEY_AudioEndpoint   = new Guid("1da5d803-d492-4edd-8c23-e0c0ffee7f0e"); // ,0 form factor
+        static readonly Guid PKEY_Topology        = new Guid("b3f8fa53-0004-438e-9003-51a46e139bfc"); // ,11 KS topology filter (per GPU port)
+        static string Str(IPropertyStore ps, Guid fmt, uint pid) {
+            var k = new PROPERTYKEY { fmtid = fmt, pid = pid }; PROPVARIANT v;
+            if (ps.GetValue(ref k, out v) != 0) return "";
+            string s = "";
+            if (v.vt == 31) s = Marshal.PtrToStringUni(v.p);
+            else if (v.vt == 72) s = ((Guid)Marshal.PtrToStructure(v.p, typeof(Guid))).ToString();
+            else if (v.vt == 19 || v.vt == 3) s = (v.p.ToInt64() & 0xFFFFFFFF).ToString();
+            PropVariantClear(ref v); return s;
+        }
+        public static List<Endpoint> Render() {
+            var en = (IMMDeviceEnumerator)new MMDeviceEnumeratorCom(); var defs = new string[3]; IMMDevice d;
+            for (int r = 0; r < 3; r++) { defs[r] = ""; if (en.GetDefaultAudioEndpoint(0, r, out d) == 0) { string id; d.GetId(out id); defs[r] = id; } }
+            IMMDeviceCollection col; en.EnumAudioEndpoints(0, 1, out col); uint n; col.GetCount(out n);   // eRender, DEVICE_STATE_ACTIVE
+            var list = new List<Endpoint>();
+            for (uint i = 0; i < n; i++) {
+                col.Item(i, out d); string id; d.GetId(out id); IPropertyStore ps; d.OpenPropertyStore(0, out ps);
+                var e = new Endpoint { Id = id, Name = Str(ps, PKEY_Device, 2), Adapter = Str(ps, PKEY_DeviceInterface, 2),
+                    ContainerId = Str(ps, PKEY_ContainerId, 2).ToLowerInvariant(), Topology = Str(ps, PKEY_Topology, 11) };
+                int ff; int.TryParse(Str(ps, PKEY_AudioEndpoint, 0), out ff); e.FormFactor = ff;
+                e.DefaultConsole = defs[0] == id; e.DefaultMultimedia = defs[1] == id; e.DefaultCommunications = defs[2] == id;
+                list.Add(e);
+            }
+            return list;
+        }
+        public static int SetDefault(string id, int role) { var pc = (IPolicyConfig)new PolicyConfigClientCom(); return pc.SetDefaultEndpoint(id, role); }
+    }
+}
+"@
+
 $SW_SHOWMAXIMIZED   = 3
 $SW_SHOWNOACTIVATE  = 4
 $SW_SHOWMINNOACTIVE = 7
@@ -213,6 +302,63 @@ function Get-WorkspaceOffset {
     $r = New-Object Native+RECT
     [void][Native]::SystemParametersInfo(0x30, 0, [ref]$r, 0)   # SPI_GETWORKAREA
     @{ X = $r.Left; Y = $r.Top }
+}
+
+# ---------------------------------------------------------------- audio
+$formFactors = @{ 0 = 'network'; 1 = 'speakers'; 2 = 'line'; 3 = 'headphones'; 4 = 'microphone'; 5 = 'headset'; 6 = 'handset'; 7 = 'digital'; 8 = 'spdif'; 9 = 'display-audio'; 10 = 'unknown' }
+
+function Get-AudioEndpoints { ,@([SwitcherAudio.Api]::Render()) }
+
+function Get-MonitorContainers {
+    # monitor EDID short ID (AOC2401) -> PnP container ID. Display-audio endpoints share the container
+    # of their monitor, which is what makes "audio of monitor X" resolvable without any device name.
+    $map = @{}
+    try {
+        foreach ($dev in (Get-PnpDevice -Class Monitor -PresentOnly -ErrorAction Stop)) {
+            $short = ($dev.InstanceId -split '\\')[1]
+            $cid = (Get-PnpDeviceProperty -InstanceId $dev.InstanceId -KeyName DEVPKEY_Device_ContainerId -ErrorAction SilentlyContinue).Data
+            if ($short -and $cid) { $map[$short] = ([string]$cid).Trim('{}').ToLowerInvariant() }
+        }
+    } catch { Log "monitor container lookup failed: $($_.Exception.Message)" 'WARN' }
+    $map
+}
+
+function Resolve-AudioEndpoint {
+    # $Spec: { monitor: 'AOC2401' } | { name: 'TV' } | { id: '{0.0.0...}' } | { topology: 'topo04' } | 'TV' (legacy string = name)
+    param($Spec, $Endpoints, $Containers)
+    if (-not $Spec) { return $null }
+    if ($Spec -is [string]) { $Spec = [pscustomobject]@{ name = $Spec } }
+    if ($Spec.monitor) {
+        $cid = $Containers[[string]$Spec.monitor]
+        if (-not $cid) { Log "audio: no present monitor with ID '$($Spec.monitor)'" 'WARN' }
+        else {
+            $hit = $Endpoints | Where-Object { $_.ContainerId -eq $cid } | Select-Object -First 1
+            if ($hit) { return [pscustomobject]@{ Endpoint = $hit; How = "audio of monitor $($Spec.monitor)" } }
+            Log "audio: monitor $($Spec.monitor) has no active audio endpoint" 'WARN'
+        }
+    }
+    if ($Spec.id)       { $hit = $Endpoints | Where-Object { $_.Id -eq $Spec.id } | Select-Object -First 1;                 if ($hit) { return [pscustomobject]@{ Endpoint = $hit; How = 'endpoint id' } } }
+    if ($Spec.topology) { $hit = $Endpoints | Where-Object { $_.Topology -like "*$($Spec.topology)*" } | Select-Object -First 1; if ($hit) { return [pscustomobject]@{ Endpoint = $hit; How = "topology '$($Spec.topology)'" } } }
+    if ($Spec.name)     { $hit = $Endpoints | Where-Object { $_.Name -eq $Spec.name } | Select-Object -First 1;             if ($hit) { return [pscustomobject]@{ Endpoint = $hit; How = "name '$($Spec.name)' (names are reset by Windows on driver installs; prefer monitor)" } } }
+    return $null
+}
+
+function Format-AudioEndpoint($ep, $Containers) {
+    $mon = ($Containers.GetEnumerator() | Where-Object { $_.Value -eq $ep.ContainerId } | Select-Object -First 1).Key
+    $roles = @(); if ($ep.DefaultConsole) { $roles += 'console' }; if ($ep.DefaultMultimedia) { $roles += 'multimedia' }; if ($ep.DefaultCommunications) { $roles += 'communications' }
+    '{0,-22} adapter={1,-30} type={2,-13} monitor={3,-8} default=[{4}]' -f (Trunc $ep.Name 22), (Trunc $ep.Adapter 30), $formFactors[$ep.FormFactor], $(if ($mon) { $mon } else { '-' }), ($roles -join ' ')
+}
+
+function Set-DefaultAudio {
+    param($Ep, $Roles)
+    foreach ($r in $Roles) {
+        $hr = [SwitcherAudio.Api]::SetDefault($Ep.Id, [int]$r)
+        if ($hr -ne 0) { Log ('audio: SetDefaultEndpoint role {0} failed hr=0x{1:X8}' -f $r, $hr) 'WARN' }
+    }
+    $after = Get-AudioEndpoints | Where-Object { $_.Id -eq $Ep.Id } | Select-Object -First 1
+    $ok = [bool]($after -and $after.DefaultMultimedia)
+    Log ("audio: default -> '{0}' ({1}){2}" -f $Ep.Name, $Ep.Adapter, $(if ($ok) { ', confirmed' } else { '  NOT CONFIRMED' }))
+    return $ok
 }
 
 # ---------------------------------------------------------------- windows
@@ -404,6 +550,14 @@ try {
     $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json
     foreach ($k in 'desk', 'couch') { if (-not $cfg.modes.$k -or -not $cfg.modes.$k.monitor) { throw "config: modes.$k.monitor is required" } }
     if (-not $cfg.timing) { $cfg | Add-Member timing ([pscustomobject]@{ primaryTimeoutMs = 8000; settleMs = 750; verifyDelayMs = 300 }) }
+    $audioRoles = @(0, 1, 2); if ($cfg.audioRoles) { $audioRoles = @($cfg.audioRoles) }
+
+    if ($ListAudio) {
+        $containers = Get-MonitorContainers
+        Log 'active playback endpoints:'
+        foreach ($ep in (Get-AudioEndpoints)) { Log ('  ' + (Format-AudioEndpoint $ep $containers)); Log ('      id={0}' -f $ep.Id); Log ('      topology={0}' -f $ep.Topology) }
+        Log '==== done'; exit 0
+    }
 
     # --- what is connected, and which one is primary right now
     $mmt = @(Get-MmtMonitors)
@@ -429,7 +583,16 @@ try {
     }
     $target  = if ($mode -eq 'desk') { $desk } else { $couch }
     $modeCfg = $cfg.modes.$mode
-    Log ("current primary {0} ({1})  ->  mode '{2}': primary {3} ({4}), audio '{5}', default place '{6}'" -f $currentPrimary.ShortId, $currentPrimary.Name, $mode, $target.ShortId, $target.Name, $modeCfg.audio, $modeCfg.defaultPlace)
+    Log ("current primary {0} ({1})  ->  mode '{2}': primary {3} ({4}), default place '{5}'" -f $currentPrimary.ShortId, $currentPrimary.Name, $mode, $target.ShortId, $target.Name, $modeCfg.defaultPlace)
+
+    # --- audio endpoint, resolved by monitor (container ID), never by its editable name
+    $audio = $null
+    if ($modeCfg.audio) {
+        $containers = Get-MonitorContainers
+        $audio = Resolve-AudioEndpoint $modeCfg.audio (Get-AudioEndpoints) $containers
+        if ($audio) { Log ("audio: '{0}' ({1}) via {2}" -f $audio.Endpoint.Name, $audio.Endpoint.Adapter, $audio.How) }
+        else { Log ("audio: nothing matches {0}; run -ListAudio to see what is active" -f ($modeCfg.audio | ConvertTo-Json -Compress)) 'WARN' }
+    }
 
     # --- inventory + plan, taken BEFORE the switch so relative positions are known
     $live = @(Get-LiveMonitors)
@@ -480,11 +643,13 @@ try {
 
     # --- 3. taskbar, 4. audio (only now, so audio never disagrees with the display)
     if ($cfg.taskbarNudge) { Send-TaskbarNudge }
-    if ($modeCfg.audio) { Invoke-Tool $nircmd ('setdefaultsounddevice "{0}" 1' -f $modeCfg.audio) | Out-Null }
+    $audioOk = $null
+    if ($audio) { $audioOk = Set-DefaultAudio $audio.Endpoint $audioRoles }
 
     $summary = "Now on $mode ($($target.ShortId)). $moved windows moved"
     if ($failed.Count) { $summary += ", $($failed.Count) failed (see log)" }
-    if ($modeCfg.audio) { $summary += ". Audio: $($modeCfg.audio)" }
+    if ($audio) { $summary += ". Audio: $($audio.Endpoint.Name)" + $(if (-not $audioOk) { ' (NOT confirmed)' } else { '' }) }
+    elseif ($modeCfg.audio) { $summary += '. Audio: NOT switched (no match, see log)' }
     Log $summary
     Notify $summary
     Log '==== done'
