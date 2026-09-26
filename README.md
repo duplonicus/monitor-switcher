@@ -11,6 +11,82 @@ A PowerShell script that toggles between primary monitors and audio devices, per
 - **Simple Logging**: Uses text files to track current state
 - **Window Customizations**: Toggleable per-user window customizations for robust window management (must write you own nircmd.exe [commands](https://nircmd.nirsoft.net/win.html))
 
+## v2 (recommended): `switch-v2.ps1`
+
+v1 broke because of how it named monitors. To MultiMonitorTool a bare number means the
+`\\.\DISPLAY<n>` device name (readme: *"1 for \\.\DISPLAY1, 2 for \\.\DISPLAY2, and so on"*),
+and Windows renumbers those on GPU driver installs, virtual-display installs and hot-plugs.
+On 2026-09-26 this machine's four monitors were `\\.\DISPLAY13`..`16`, so `config.json`'s
+`1`/`2`/`3`/`4` pointed at nothing: `/SetPrimary 2` did no work, the per-app `/MoveWindow 3` and
+`/MoveWindow 4` rules did no work, and the only steps that still ran were "maximize everything",
+"move everything to the *current* primary", and the audio toggle, which flipped on a text file and
+so drifted out of sync with the display. Verified by moving a probe window with
+`/MoveWindow 1..4` (no-ops) versus `/MoveWindow AOC2401` / `MST0030` (worked).
+
+v2 fixes the design, not just the numbers:
+
+| v1 | v2 |
+|---|---|
+| monitors are bare numbers | monitors are EDID **Short Monitor IDs** (`AOC2401`, `MST0030`, ...), serials, or `\\.\DISPLAYn` |
+| direction from `SwapMonitorsLog.txt` (drifts; a stray copy was found in `C:\Users\dup`) | direction from the **live primary monitor**; no state file |
+| fire `/SetPrimary` and hope | `/SetPrimary`, then **poll until Windows confirms**; abort everything if it does not |
+| maximize every window so minimized ones can be moved | `SetWindowPlacement` moves minimized windows as-is and **keeps each window's state** |
+| per-app rules race (`nircmd`/`MultiMonitorTool` are GUI-subsystem exes, so `&`/`-Wait` never waited) | one synchronous pass, each move **verified** against the monitor it landed on, retried once |
+| DPI-unaware coordinates (the 125 % monitor is virtualised) | per-monitor-v2 DPI aware, physical pixels |
+| no log | `logs\switch-YYYY-MM-DD.log` every run, plus a tray balloon with the result |
+| second press while running = two racing scripts | mutex: the second press is ignored and logged |
+
+### Setup
+
+1. Find your monitor IDs (either works):
+   ```powershell
+   .\switch-v2.ps1 -DryRun        # logs every monitor it sees, then the per-window plan; changes nothing
+   .\MultiMonitorTool.exe /scomma monitors.csv   # columns: Name, Short Monitor ID, Monitor Serial Number
+   ```
+2. Put them in `config-v2.json` (`modes.desk.monitor`, `modes.couch.monitor`, and `rules[].monitor`).
+   The `audio` values are the Windows sound-device names, as in v1.
+3. Register the elevated task once, from an **admin** shell in this folder (needed only so admin
+   windows such as an elevated Terminal or Task Manager move too):
+   ```powershell
+   schtasks /Create /XML "MonitorSwitcherV2-Task.xml" /TN "MonitorSwitcherV2"
+   ```
+4. Reload `switch.ahk`. **Ctrl+Alt+V** switches (via the task if registered, otherwise directly,
+   non-elevated, with a tooltip saying so). **Ctrl+Alt+D** writes a dry-run plan to the log.
+
+### `config-v2.json`
+
+- `modes.desk` / `modes.couch`: `monitor` (ID), `audio` (device name), `defaultPlace` for windows
+  with no rule: `keep` (preserve min/max/normal), `normal`, `max`, `min`, `left`, `right`.
+- `fallbackMode`: used when the current primary is neither desk nor couch.
+- `rules[]`: first match wins. `when` (`desk`/`couch`/omit for both), `match` with any of
+  `process` (`Discord.exe`), `class` (`CabinetWClass`), `title` (substring), optional `monitor`
+  (default: the new primary), optional `place`. `left`/`right` are halves of that monitor's work area,
+  so they survive resolution and scaling changes; no hard-coded pixel rectangles.
+- `timing`: `primaryTimeoutMs` (how long to wait for Windows to confirm the primary),
+  `settleMs` (pause after confirmation before windows move), `verifyDelayMs`.
+
+### Command line
+
+```powershell
+.\switch-v2.ps1              # toggle: desk -> couch or couch -> desk, from the live primary
+.\switch-v2.ps1 -To desk     # force a direction, or re-apply the desk layout without switching
+.\switch-v2.ps1 -DryRun      # plan only
+```
+
+### What the log tells you when something does not move
+
+Each failed window is logged with a reason. `access denied: elevated window` means the run was not
+elevated (register the task, use Ctrl+Alt+V). `did not land on the destination` means the app
+repositions itself (some games and UWP apps); `moved but…` lines name the window so you can add a rule.
+If the primary never confirms, the log says so and nothing else is touched; MultiMonitorTool's readme
+notes that on Windows 11 24H2 the cure is to change something in Display settings once, then retry.
+
+---
+
+## v1 (legacy): `switch.ps1`
+
+Kept for reference. Everything below this line describes v1.
+
 ## Prerequisites
 
 - **PowerShell**: Windows PowerShell (included with Windows)

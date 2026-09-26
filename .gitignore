@@ -3,3 +3,5 @@ switchv2.ps1
 SwapMonitorsLog.txt
 SwapAudioLog.txt
 .vscode/
+logs/
+.claude/worktrees/

@@ -1,0 +1,50 @@
+{
+    "_comment": [
+        "Monitor Switcher v2 config.",
+        "Monitors are identified by MultiMonitorTool's 'Short Monitor ID' (EDID vendor+product code),",
+        "the monitor serial number, or the \\\\.\\DISPLAYn name. NEVER by a bare number: to MultiMonitorTool",
+        "a bare '2' means \\\\.\\DISPLAY2, and Windows renumbers those on driver installs and hot-plugs.",
+        "List yours with:  .\\MultiMonitorTool.exe /scomma monitors.csv   (columns Name, Short Monitor ID, Monitor Serial Number)",
+        "Or run:           .\\switch-v2.ps1 -DryRun   which logs every monitor it can see."
+    ],
+    "modes": {
+        "desk":  { "monitor": "AOC2401", "audio": "Speakers", "defaultPlace": "keep" },
+        "couch": { "monitor": "MST0030", "audio": "TV",       "defaultPlace": "max"  }
+    },
+    "fallbackMode": "desk",
+    "_place_values": "keep = preserve minimized/maximized/normal | normal | max | min | left | right (half of the destination work area)",
+    "rules": [
+        {
+            "when": "desk",
+            "match": { "process": "Discord.exe" },
+            "monitor": "RTK3B3D",
+            "place": "max",
+            "_comment": "Discord maximized on the ARZOPA (the portable monitor above the desk one)"
+        },
+        {
+            "when": "desk",
+            "match": { "title": "WhatsApp" },
+            "monitor": "GSM76F9",
+            "place": "right",
+            "_comment": "WhatsApp on the right half of the LG ultrawide"
+        },
+        {
+            "when": "desk",
+            "match": { "title": "Windows PowerShell" },
+            "place": "normal"
+        },
+        {
+            "when": "desk",
+            "match": { "class": "CabinetWClass" },
+            "place": "normal",
+            "_comment": "File Explorer windows un-maximized on the desk monitor"
+        }
+    ],
+    "timing": {
+        "primaryTimeoutMs": 8000,
+        "settleMs": 750,
+        "verifyDelayMs": 300
+    },
+    "taskbarNudge": true,
+    "notify": true
+}
