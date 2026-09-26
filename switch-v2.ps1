@@ -106,7 +106,7 @@ public static class Native {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
     [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr w, IntPtr l, uint flags, uint timeout, out IntPtr result);
     [DllImport("user32.dll")] public static extern bool SystemParametersInfo(uint action, uint p, ref RECT r, uint winini);
-    [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr ctx);
+    [DllImport("user32.dll", SetLastError = true)] public static extern bool SetProcessDpiAwarenessContext(IntPtr ctx);
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
     [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attr, out int val, int size);
 
@@ -128,6 +128,7 @@ public static class Native {
 $dpiMode = 'unaware'
 try {
     if ([Native]::SetProcessDpiAwarenessContext((New-Object System.IntPtr -ArgumentList ([long]-4)))) { $dpiMode = 'per-monitor-v2' }
+    elseif ([Runtime.InteropServices.Marshal]::GetLastWin32Error() -eq 5) { $dpiMode = 'per-monitor-v2 (set by an earlier run in this shell)' }   # ERROR_ACCESS_DENIED = awareness already set; it cannot be lowered
     elseif ([Native]::SetProcessDPIAware()) { $dpiMode = 'system' }
 } catch { if ([Native]::SetProcessDPIAware()) { $dpiMode = 'system' } }
 
