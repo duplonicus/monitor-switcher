@@ -8,7 +8,7 @@
         "Or run:           .\\switch-v2.ps1 -DryRun   which logs every monitor it can see."
     ],
     "modes": {
-        "desk":  { "monitor": "AOC2401", "audio": { "monitor": "AOC2401" }, "defaultPlace": "keep" },
+        "desk":  { "monitor": "AOC2401", "audio": { "monitor": "RTK3B3D" }, "defaultPlace": "keep" },
         "couch": { "monitor": "MST0030", "audio": { "monitor": "MST0030" }, "defaultPlace": "max"  }
     },
     "_audio": [
