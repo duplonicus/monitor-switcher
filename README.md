@@ -50,8 +50,13 @@ v2 fixes the design, not just the numbers:
    ```powershell
    schtasks /Create /XML "MonitorSwitcherV2-Task.xml" /TN "MonitorSwitcherV2"
    ```
-4. Reload `switch.ahk`. **Ctrl+Alt+V** switches (via the task if registered, otherwise directly,
-   non-elevated, with a tooltip saying so). **Ctrl+Alt+D** writes a dry-run plan to the log.
+4. Delete the v1 task, which only ever ran the broken `switch.ps1`:
+   ```powershell
+   schtasks /Delete /TN "MonitorSwitcher" /F
+   ```
+5. Reload `switch.ahk`. **Ctrl+Alt+V** or **Ctrl+Alt+S** switch via the task (or directly, non-elevated,
+   with a tooltip saying so, if the task is not registered). **Ctrl+Alt+M** switches non-elevated.
+   **Ctrl+Alt+D** writes a dry-run plan to the log. No key runs v1 any more.
 
 ### `config-v2.json`
 
