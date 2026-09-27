@@ -546,7 +546,17 @@ try {
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     Log ('==== switch-v2 start  dryRun={0} to={1} elevated={2} dpi={3} host={4}' -f $DryRun, $(if ($To) { $To } else { 'toggle' }), $isAdmin, $dpiMode, $PSVersionTable.PSVersion)
 
-    if (-not (Test-Path $cfgPath)) { throw "config not found: $cfgPath" }
+    # --- what is connected, and which one is primary right now (listed before the config is needed,
+    #     so a first run on a fresh clone shows the IDs to put in the config)
+    $mmt = @(Get-MmtMonitors)
+    foreach ($m in $mmt) {
+        Log ('monitor {0,-14} id={1,-8} serial={2,-14} name={3,-16} {4,-11} scale={5,-5} at={6,-14} active={7} primary={8}' -f $m.Name, $m.ShortId, $m.Serial, (Trunc $m.MonitorName 16), $m.Resolution, $m.Scale, $m.Position, $m.Active, $m.Primary)
+    }
+    $seen = ($mmt | ForEach-Object { '{0} ({1})' -f $_.ShortId, (Trunc $_.MonitorName 16) }) -join ', '
+
+    if (-not (Test-Path $cfgPath)) {
+        throw "no config-v2.json next to the script. Copy config-v2.example.json to config-v2.json and put your monitor IDs in it. Monitors seen right now: $seen"
+    }
     $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json
     foreach ($k in 'desk', 'couch') { if (-not $cfg.modes.$k -or -not $cfg.modes.$k.monitor) { throw "config: modes.$k.monitor is required" } }
     if (-not $cfg.timing) { $cfg | Add-Member timing ([pscustomobject]@{ primaryTimeoutMs = 8000; settleMs = 750; verifyDelayMs = 300 }) }
@@ -559,15 +569,10 @@ try {
         Log '==== done'; exit 0
     }
 
-    # --- what is connected, and which one is primary right now
-    $mmt = @(Get-MmtMonitors)
-    foreach ($m in $mmt) {
-        Log ('monitor {0,-14} id={1,-8} serial={2,-14} name={3,-16} {4,-11} scale={5,-5} at={6,-14} active={7} primary={8}' -f $m.Name, $m.ShortId, $m.Serial, (Trunc $m.MonitorName 16), $m.Resolution, $m.Scale, $m.Position, $m.Active, $m.Primary)
-    }
     $desk  = Resolve-Monitor $cfg.modes.desk.monitor  $mmt
     $couch = Resolve-Monitor $cfg.modes.couch.monitor $mmt
-    if (-not $desk)         { throw "desk monitor '$($cfg.modes.desk.monitor)' is not in the monitor list" }
-    if (-not $couch)        { throw "couch monitor '$($cfg.modes.couch.monitor)' is not in the monitor list. Is the TV on and connected?" }
+    if (-not $desk)         { throw "desk monitor '$($cfg.modes.desk.monitor)' is not in the monitor list. Monitors seen: $seen. Edit modes.desk.monitor in config-v2.json" }
+    if (-not $couch)        { throw "couch monitor '$($cfg.modes.couch.monitor)' is not in the monitor list. Monitors seen: $seen. Is the TV on and connected? Otherwise edit modes.couch.monitor in config-v2.json" }
     if (-not $desk.Active)  { throw "desk monitor $($desk.ShortId) is present but inactive" }
     if (-not $couch.Active) { throw "couch monitor $($couch.ShortId) is present but inactive. Is the TV on?" }
 

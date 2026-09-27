@@ -5,3 +5,4 @@ SwapAudioLog.txt
 .vscode/
 logs/
 .claude/worktrees/
+config-v2.json

@@ -44,13 +44,15 @@ v2 fixes the design, not just the numbers:
    .\switch-v2.ps1 -DryRun        # logs every monitor it sees, then the per-window plan; changes nothing
    .\MultiMonitorTool.exe /scomma monitors.csv   # columns: Name, Short Monitor ID, Monitor Serial Number
    ```
-2. Put them in `config-v2.json` (`modes.desk.monitor`, `modes.couch.monitor`, and `rules[].monitor`).
+2. Copy `config-v2.example.json` to `config-v2.json` (git-ignored, so it stays yours) and put the IDs in
+   `modes.desk.monitor`, `modes.couch.monitor` and `rules[].monitor`.
    `audio` is `{ "monitor": "<ID>" }` for audio that comes out of a monitor (HDMI/DP audio, or headphones
    plugged into a monitor's jack). `.\switch-v2.ps1 -ListAudio` shows every active playback endpoint with
    the monitor it belongs to. For a non-monitor device use `{ "id": ... }` or `{ "topology": ... }` from that
    listing; `{ "name": ... }` also works but Windows resets names on driver installs.
 3. Register the elevated task once, from an **admin** shell in this folder (needed only so admin
-   windows such as an elevated Terminal or Task Manager move too):
+   windows such as an elevated Terminal or Task Manager move too). Edit the two paths in
+   `MonitorSwitcherV2-Task.xml` first if the repo is not at `C:\Users\dup\dev\monitor_switcher`:
    ```powershell
    schtasks /Create /XML "MonitorSwitcherV2-Task.xml" /TN "MonitorSwitcherV2"
    ```
