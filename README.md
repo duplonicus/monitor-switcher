@@ -1,536 +1,133 @@
 # Monitor Switcher
 
-A PowerShell script that toggles between primary monitors and audio devices, perfect for switching between a desk setup and TV setup from the couch.
+One hotkey moves your whole Windows session between a desk setup and a TV: the primary display,
+every open window, and the default audio device. Press it again to come back.
 
-## Features
+Built from PowerShell, [AutoHotkey v2](https://www.autohotkey.com/) for the hotkey, and two NirSoft
+freeware tools that are included in the repo: [MultiMonitorTool](https://www.nirsoft.net/utils/multi_monitor_tool.html)
+(the primary-monitor switch) and [NirCmd](https://www.nirsoft.net/utils/nircmd.html) (the tray balloon).
 
-- **Monitor Toggle**: Toggles primary display between chosen monitors
-- **Window Management**: Automatically moves all windows to the new primary monitor
-- **Audio Toggle**: Switches default audio device between chosen audio devices
-- **State Persistence**: Remembers the last selected monitor and audio device
-- **Simple Logging**: Uses text files to track current state
-- **Window Customizations**: Toggleable per-user window customizations for robust window management (must write you own nircmd.exe [commands](https://nircmd.nirsoft.net/win.html))
+## What a press does
 
-## v2 (recommended): `switch-v2.ps1`
+1. Reads which monitor is primary **right now** and picks the other setup. There is no state file.
+2. Sets the new primary and polls until Windows confirms it. If it never does, nothing else happens.
+3. Moves every window to the new primary, or where your rules say, keeping each window's
+   minimized / maximized / normal state. Every move is verified and retried once.
+4. Nudges the taskbar (Windows 11 sometimes leaves the old primary's taskbar blank).
+5. Switches the default audio device to the one that belongs to the destination monitor.
+6. Shows a tray balloon with the result and writes `logs\switch-YYYY-MM-DD.log`.
 
-v1 broke because of how it named monitors. To MultiMonitorTool a bare number means the
-`\\.\DISPLAY<n>` device name (readme: *"1 for \\.\DISPLAY1, 2 for \\.\DISPLAY2, and so on"*),
-and Windows renumbers those on GPU driver installs, virtual-display installs and hot-plugs.
-On 2026-09-26 this machine's four monitors were `\\.\DISPLAY13`..`16`, so `config.json`'s
-`1`/`2`/`3`/`4` pointed at nothing: `/SetPrimary 2` did no work, the per-app `/MoveWindow 3` and
-`/MoveWindow 4` rules did no work, and the only steps that still ran were "maximize everything",
-"move everything to the *current* primary", and the audio toggle, which flipped on a text file and
-so drifted out of sync with the display. Verified by moving a probe window with
-`/MoveWindow 1..4` (no-ops) versus `/MoveWindow AOC2401` / `MST0030` (worked).
+## Setup
 
-v2 fixes the design, not just the numbers:
+1. Clone or download the repo.
+2. Copy `config.example.json` to `config.json` (git-ignored, so it stays yours).
+3. Find your monitor IDs and put them in `config.json`:
+   ```powershell
+   .\switch.ps1 -DryRun        # lists every monitor it can see, then the plan; changes nothing
+   .\switch.ps1 -ListAudio     # every active playback device and which monitor it belongs to
+   ```
+   Use the **Short Monitor ID** column (e.g. `AOC2401`), the serial number, or the `\\.\DISPLAYn`
+   name. Never a bare number: to MultiMonitorTool `2` means `\\.\DISPLAY2`, and Windows renumbers
+   those on driver installs and hot-plugs.
+4. Register the elevated scheduled task once, from an **admin** shell in this folder. It is what
+   lets admin windows (an elevated Terminal, Task Manager) move too. Edit the two paths in
+   `MonitorSwitcher-Task.xml` first if the repo is not at `C:\Users\<you>\dev\monitor_switcher`:
+   ```powershell
+   schtasks /Create /XML "MonitorSwitcher-Task.xml" /TN "MonitorSwitcher" /F
+   ```
+5. Run `switch.ahk` (double-click). For startup, put a shortcut to it in `shell:startup`.
 
-| v1 | v2 |
+## Hotkeys
+
+| Key | Does |
 |---|---|
-| monitors are bare numbers | monitors are EDID **Short Monitor IDs** (`AOC2401`, `MST0030`, ...), serials, or `\\.\DISPLAYn` |
-| direction from `SwapMonitorsLog.txt` (drifts; a stray copy was found in `C:\Users\dup`) | direction from the **live primary monitor**; no state file |
-| fire `/SetPrimary` and hope | `/SetPrimary`, then **poll until Windows confirms**; abort everything if it does not |
-| maximize every window so minimized ones can be moved | `SetWindowPlacement` moves minimized windows as-is and **keeps each window's state** |
-| per-app rules race (`nircmd`/`MultiMonitorTool` are GUI-subsystem exes, so `&`/`-Wait` never waited) | one synchronous pass, each move **verified** against the monitor it landed on, retried once |
-| DPI-unaware coordinates (the 125 % monitor is virtualised) | per-monitor-v2 DPI aware, physical pixels |
-| no log | `logs\switch-YYYY-MM-DD.log` every run, plus a tray balloon with the result |
-| second press while running = two racing scripts | mutex: the second press is ignored and logged |
-| audio device by its editable name, via nircmd, no error if the name matches nothing | audio **by monitor**: the display-audio endpoint sharing the monitor's PnP container ID, set natively for all three roles and read back; names are reset by Windows on driver installs, so they are a last-resort fallback only |
+| **Ctrl+Alt+S** (or **V**) | Switch, elevated, via the scheduled task. Falls back to a direct non-elevated run with a tooltip if the task is not registered. |
+| **Ctrl+Alt+M** | Switch directly, non-elevated. Admin windows will not move. |
+| **Ctrl+Alt+D** | Dry run: writes the plan to the log, changes nothing. |
+| **Ctrl+Alt+X** | Monitors off, PC stays on. Move the mouse to wake. |
 
-### Setup
+Edit `switch.ahk` to change them. After editing, right-click the AutoHotkey tray icon → Reload Script.
 
-1. Find your monitor IDs (either works):
-   ```powershell
-   .\switch-v2.ps1 -DryRun        # logs every monitor it sees, then the per-window plan; changes nothing
-   .\MultiMonitorTool.exe /scomma monitors.csv   # columns: Name, Short Monitor ID, Monitor Serial Number
-   ```
-2. Copy `config-v2.example.json` to `config-v2.json` (git-ignored, so it stays yours) and put the IDs in
-   `modes.desk.monitor`, `modes.couch.monitor` and `rules[].monitor`.
-   `audio` is `{ "monitor": "<ID>" }` for audio that comes out of a monitor (HDMI/DP audio, or headphones
-   plugged into a monitor's jack). `.\switch-v2.ps1 -ListAudio` shows every active playback endpoint with
-   the monitor it belongs to. For a non-monitor device use `{ "id": ... }` or `{ "topology": ... }` from that
-   listing; `{ "name": ... }` also works but Windows resets names on driver installs.
-3. Register the elevated task once, from an **admin** shell in this folder (needed only so admin
-   windows such as an elevated Terminal or Task Manager move too). Edit the two paths in
-   `MonitorSwitcherV2-Task.xml` first if the repo is not at `C:\Users\dup\dev\monitor_switcher`:
-   ```powershell
-   schtasks /Create /XML "MonitorSwitcherV2-Task.xml" /TN "MonitorSwitcherV2"
-   ```
-4. Delete the v1 task, which only ever ran the broken `switch.ps1`:
-   ```powershell
-   schtasks /Delete /TN "MonitorSwitcher" /F
-   ```
-5. Reload `switch.ahk`. **Ctrl+Alt+V** or **Ctrl+Alt+S** switch via the task (or directly, non-elevated,
-   with a tooltip saying so, if the task is not registered). **Ctrl+Alt+M** switches non-elevated.
-   **Ctrl+Alt+D** writes a dry-run plan to the log. No key runs v1 any more.
-
-### `config-v2.json`
-
-- `modes.desk` / `modes.couch`: `monitor` (ID), `audio` (`{ "monitor": ID }`, or `id` / `topology` / `name`),
-  `defaultPlace` for windows with no rule: `keep` (preserve min/max/normal), `normal`, `max`, `min`, `left`, `right`.
-- `audioRoles`: which default roles to set; `[0, 1, 2]` = console, multimedia, communications (what the
-  Settings app sets). Drop `2` if you want calls to stay on one device.
-- `fallbackMode`: used when the current primary is neither desk nor couch.
-- `rules[]`: first match wins. `when` (`desk`/`couch`/omit for both), `match` with any of
-  `process` (`Discord.exe`), `class` (`CabinetWClass`), `title` (substring), optional `monitor`
-  (default: the new primary), optional `place`. `left`/`right` are halves of that monitor's work area,
-  so they survive resolution and scaling changes; no hard-coded pixel rectangles.
-- `timing`: `primaryTimeoutMs` (how long to wait for Windows to confirm the primary),
-  `settleMs` (pause after confirmation before windows move), `verifyDelayMs`.
-
-### Command line
+## Command line
 
 ```powershell
-.\switch-v2.ps1              # toggle: desk -> couch or couch -> desk, from the live primary
-.\switch-v2.ps1 -To desk     # force a direction, or re-apply the desk layout without switching
-.\switch-v2.ps1 -DryRun      # plan only
-.\switch-v2.ps1 -ListAudio   # active playback endpoints, each with the monitor it belongs to
+.\switch.ps1              # toggle: desk -> couch or couch -> desk, from the live primary
+.\switch.ps1 -To desk     # force a direction, or re-apply the desk layout without switching
+.\switch.ps1 -DryRun      # plan only
+.\switch.ps1 -ListAudio   # active playback endpoints, each with the monitor it belongs to
 ```
 
-### What the log tells you when something does not move
-
-Each failed window is logged with a reason. `access denied: elevated window` means the run was not
-elevated (register the task, use Ctrl+Alt+V). `did not land on the destination` means the app
-repositions itself (some games and UWP apps); `moved but…` lines name the window so you can add a rule.
-If the primary never confirms, the log says so and nothing else is touched; MultiMonitorTool's readme
-notes that on Windows 11 24H2 the cure is to change something in Display settings once, then retry.
-
----
-
-## v1 (legacy): `switch.ps1`
-
-Kept for reference. Everything below this line describes v1.
-
-## Prerequisites
-
-- **PowerShell**: Windows PowerShell (included with Windows)
-- **AutoHotkey v2** (Optional): Download and install [AutoHotkey v2](https://www.autohotkey.com/) for keyboard shortcuts
-- **Audio Devices**: Ensure your audio device names match in `config.json` and in Windows audio settings
-
-**Note**: [NirCmd](https://www.nirsoft.net/utils/nircmd.html) and [MultiMonitorTool](https://www.nirsoft.net/utils/multi_monitor_tool.html) are included in this repository - no additional downloads required! These tools are freeware and can be freely redistributed.
-
-## Installation
-
-1. **Download or clone this repository**
-2. **Configure your audio devices**:
-   - Open Windows Sound settings
-   - Rename your devices to "TV" and "Speakers" (or update `config.json` to match your device names)
-3. **Test the setup**:
-   ```powershell
-   .\switch.ps1
-   ```
-4. **Setup Scheduled Task (Optional)**:
-   - Run the following command from the project directory as Administrator:
-   ```powershell
-   schtasks /Create /XML "MonitorSwitcher-Task.xml" /TN "MonitorSwitcher"
-   ```
-   - This enables moving admin windows. See "Admin Window Movement Fix" section below for details.
-5. **Install AutoHotkey v2 (Optional)**:
-   - Download and install [AutoHotkey v2](https://www.autohotkey.com/)
-   - This enables keyboard shortcuts (Ctrl+Alt+M or Ctrl+Alt+S) to switch monitors
-   - See "AutoHotkey v2 Setup and Usage" section below for full details
-
-That's it! All required tools (except AutoHotkey) are included in the repository.
-
-## Usage
-
-### Method 1: Keyboard Shortcut (Recommended)
-1. Install AutoHotkey v2 if you haven't already
-2. Run `switch.ahk` by double-clicking it or running it from command line
-3. Press **Ctrl+Alt+M** or **Ctrl+Alt+S** to toggle monitors and audio
-4. The script will show a brief tooltip notification when switching
-5. Add a shortcut to `switch.ahk` in `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp` if you want it to run on startup
-
-### Method 2: PowerShell
-Run the script from PowerShell:
-
-```powershell
-.\switch.ps1
-```
-
-### Method 3: Double-click
-Double-click the `switch.ps1` script file in Windows Explorer.
-
-### Method 4: PowerShell Function (Convenient)
-Add a function to your PowerShell profile for easy command-line access:
-
-1. **Open your PowerShell profile**:
-   ```powershell
-   notepad $PROFILE
-   ```
-
-2. **Add this function**:
-   ```powershell
-   function switchmon {
-       & "\path\to\switch.ps1"
-   }
-   ```
-
-3. **Save and reload**:
-   ```powershell
-   . $PROFILE
-   ```
-
-4. **Use the command**:
-   ```powershell
-   switchmon
-   ```
-
-## How It Works
-
-### Monitor Switching
-- Toggles between chosen displays in `config.json`
-- Uses MultiMonitorTool's `/SetPrimary` command
-- Automatically moves all windows to the new primary monitor using MultiMonitorTool's `/MoveWindow Primary All` command
-- State is stored in `./SwapMonitorsLog.txt` by default
-
-### Audio Switching
-- Toggles between "TV" and "Headphones" audio devices
-- Uses NirCmd's `setdefaultsounddevice` command
-- State is stored in `./SwapAudioLog.txt` by default
-
-## Configuration
-
-The script uses a `config.json` file for easy customization. No need to edit the PowerShell script directly!
-
-### Configuration File (`config.json`)
+## `config.json`
 
 ```json
 {
-  "monitors": {
-    "primary": 1,
-    "secondary": 4
+  "modes": {
+    "desk":  { "monitor": "AOC2401", "audio": { "monitor": "RTK3B3D" }, "defaultPlace": "keep" },
+    "couch": { "monitor": "MST0030", "audio": { "monitor": "MST0030" }, "defaultPlace": "max"  }
   },
-  "audio": {
-    "device1": "TV",
-    "device2": "Headphones"
-  },
-  "paths": {
-    "monitorLog": "/path/to/log/folder/SwapMonitorsLog.txt",
-    "audioLog": "/path/to/log/folder/SwapAudioLog.txt"
-  },
-  "notifications": {
-    "enabled": true,
-    "monitorMessage": "Switched to Monitor {0}",
-    "audioMessage": "Switched to {0}"
-  }
+  "audioRoles": [0, 1, 2],
+  "fallbackMode": "desk",
+  "rules": [
+    { "when": "desk", "match": { "process": "Discord.exe" }, "monitor": "RTK3B3D", "place": "max" },
+    { "when": "desk", "match": { "title": "WhatsApp" },      "monitor": "GSM76F9", "place": "right" },
+    { "when": "desk", "match": { "class": "CabinetWClass" }, "place": "normal" }
+  ],
+  "timing": { "primaryTimeoutMs": 8000, "settleMs": 750, "verifyDelayMs": 300 },
+  "taskbarNudge": true,
+  "notify": true
 }
 ```
 
-**Note**: If your monitors don't seem to match Windows display settings, use `get_monitor_numbers.ps1` to get their actual numbers or use trial and error.
-
-### Customization Options
-
-#### Monitor Settings
-- **`primary`**: First monitor number (default: 1)
-- **`secondary`**: Second monitor number (default: 4)
-
-#### Audio Settings
-- **`device1`**: First audio device name (default: "TV")
-- **`device2`**: Second audio device name (default: "Headphones")
-
-#### Log File Locations
-- **`monitorLog`**: Path for monitor state log (supports environment variables)
-- **`audioLog`**: Path for audio state log (supports environment variables)
-
-
-#### Notifications
-- **`enabled`**: Enable/disable console notifications (default: true)
-- **`monitorMessage`**: Message format for monitor switches (use {0} for monitor number)
-- **`audioMessage`**: Message format for audio switches (use {0} for device name)
-
-#### Window Customizations
-- **`enabled`**: Enable/disable per-user window customizations (default: true)
-   - Set this to `false` until you define your own customizations
-- **`rules`**: Array of customization rules that run when switching to the primary monitor
-
-### Per-User Window Customizations
-
-The window customizations feature allows you to automatically position specific windows at custom locations, sizes, or monitors when switching to your primary monitor (desk setup). This is perfect for multi-monitor setups where you want certain apps to always go to specific monitors.
-
-#### How It Works
-
-When you switch **to your primary monitor** (typically your desk setup), the customization rules run after all windows are moved to the primary display. Each rule can:
-1. Move a specific window to a different monitor
-2. Run custom NirCmd commands to resize, maximize, or reposition the window
-3. Or run any other arbirtrary PowerShell commands
-
-When you switch **to your secondary monitor** (typically your TV), all windows simply move to that monitor and are maximized with no customizations applied.
-
-#### Configuration Structure
-
-Each rule in the `windowCustomizations.rules` array requires:
-
-- **`findMethod`**: How to find the window
-  - `"Process"` - Find by process name (e.g., "Discord.exe")
-  - `"Title"` - Find by window title (e.g., "WhatsApp")
-- **`findValue`**: The process name or window title to match
-- **`monitor`**: Target monitor number to move the window to
-- **`command`** (optional): Additional PowerShell command to run for advanced customization
-
-#### Example Configuration
-
-```json
-{
-  "windowCustomizations": {
-    "enabled": true,
-    "rules": [
-      {
-        "findMethod": "Process",
-        "findValue": "Discord.exe",
-        "monitor": 3,
-        "command": "if ($customization.findValue -eq 'Discord.exe') { & nircmd.exe win max process 'Discord.exe'; & Write-Host 'Discord maximized' }"
-      },
-      {
-        "findMethod": "Title",
-        "findValue": "WhatsApp",
-        "monitor": 4,
-        "_comment": "if WhatsApp, make normal, activate, and resize to right half of screen",
-        "command": "if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp'; & nircmd.exe win activate ititle 'WhatsApp'; & nircmd.exe win setsize ititle 'WhatsApp' -1287 0 1294 1039; & Write-Host 'WhatsApp snapped to right' }"
-      }
-    ]
-  }
-}
-```
-
-#### Common Use Cases
-
-**Move Discord to a specific monitor:**
-```json
-{
-  "findMethod": "Process",
-  "findValue": "Discord.exe",
-  "monitor": 3
-}
-```
-
-**Move and maximize Spotify:**
-```json
-{
-  "findMethod": "Process",
-  "findValue": "Spotify.exe",
-  "monitor": 4,
-  "command": "if ($customization.findValue -eq 'Spotify.exe') { & nircmd.exe win max process 'Spotify.exe' }"
-}
-```
-
-**Snap a window to the right half of the screen:**
-```json
-{
-  "findMethod": "Title",
-  "findValue": "WhatsApp",
-  "monitor": 4,
-  "command": "if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp'; & nircmd.exe win setsize ititle 'WhatsApp' -1287 0 1294 1039 }"
-}
-```
-
-#### NirCmd Commands Reference
-
-The `command` field supports any NirCmd window commands. **Important**: Always wrap commands in an `if` statement that checks `$customization.findValue` to ensure the command only applies to the intended window.
-
-Common command patterns:
-
-- **Maximize**:
-  ```powershell
-  if ($customization.findValue -eq 'Discord.exe') { & nircmd.exe win max process 'Discord.exe' }
-  ```
-- **Minimize**:
-  ```powershell
-  if ($customization.findValue -eq 'Spotify.exe') { & nircmd.exe win min process 'Spotify.exe' }
-  ```
-- **Normal/Restore**:
-  ```powershell
-  if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp' }
-  ```
-- **Activate/Focus**:
-  ```powershell
-  if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win activate ititle 'WhatsApp' }
-  ```
-- **Resize**:
-  ```powershell
-  if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win setsize ititle 'WhatsApp' x y width height }
-  ```
-- **Multiple commands** (chain with semicolons):
-  ```powershell
-  if ($customization.findValue -eq 'WhatsApp') { & nircmd.exe win normal ititle 'WhatsApp'; & nircmd.exe win activate ititle 'WhatsApp'; & nircmd.exe win setsize ititle 'WhatsApp' -1287 0 1294 1039 }
-  ```
-
-For more NirCmd commands, see the [NirCmd documentation](https://nircmd.nirsoft.net/win.html).
-
-#### Tips
-
-- **Use `_comment` fields**: Add comments to your rules for documentation (they're ignored by the script)
-- **Test your commands**: Run NirCmd commands manually first to get the right coordinates
-- **Find process names**: Use Task Manager to find the exact process name
-- **Find window titles**: Check in MultiMonitorTool GUI
-- **Disable temporarily**: Set `"enabled": false` to disable all customizations without deleting rules
-- **Order matters**: Rules run in the order they appear in the array
-
-### Quick Setup Examples
-
-#### Different Monitor Numbers
-```json
-{
-  "monitors": {
-    "primary": 2,
-    "secondary": 3
-  }
-}
-```
-
-#### Different Audio Devices
-```json
-{
-  "audio": {
-    "device1": "Speakers",
-    "device2": "Headset"
-  }
-}
-```
-
-#### Custom Log Locations
-```json
-{
-  "paths": {
-    "monitorLog": "C:\\Logs\\monitor_state.txt",
-    "audioLog": "C:\\Logs\\audio_state.txt"
-  }
-}
-```
-
-#### Disable Notifications
-```json
-{
-  "notifications": {
-    "enabled": false
-  }
-}
-```
-
-## Admin Window Movement Fix
-
-If you notice that some windows (especially admin windows like Terminal, Task Manager, TreeSize) don't move when switching monitors, this is due to Windows security restrictions (UIPI). The solution is to run the script with elevated privileges using Task Scheduler.
-
-### One-Time Setup (Requires Admin)
-
-1. Open PowerShell as Administrator
-2. Navigate to the monitor_switcher directory
-3. Import the scheduled task:
-   ```powershell
-   schtasks /Create /XML "MonitorSwitcher-Task.xml" /TN "MonitorSwitcher"
-   ```
-
-### Usage After Setup
-
-Once configured, you can run the elevated version without UAC prompts:
-
-**From AutoHotkey**: The `Ctrl+Alt+S` hotkey in `switch.ahk` already uses the elevated method by calling `admin_scheduled_task_switch.ps1` which in turn calls the scheduled task
-
-**From command line**:
-```powershell
-.\admin_scheduled_task_switch.ps1
-```
-
-### Uninstall Task Scheduler Method
-```powershell
-schtasks /Delete /TN "MonitorSwitcher" /F
-```
-
-### Comparison of Methods
-
-- **Ctrl+Alt+M**: Uses original `switch.ps1` (may not move admin windows)
-- **Ctrl+Alt+S**: Uses `admin_scheduled_task_switch.ps1` via Task Scheduler (moves all windows including admin)
-
-## Troubleshooting
-
-### General Issues
-- **"nircmd.exe not found"**: Ensure `nircmd.exe` is in the same folder as `switch.ps1`
-- **"MultiMonitorTool.exe not found"**: Ensure `MultiMonitorTool.exe` is in the same folder as `switch.ps1`
-- **Audio device not switching**: Check that your audio devices are named exactly as configured in `config.json`
-- **Monitor not switching**: Verify the display numbers in `config.json` match your setup
-- **Admin windows not moving**: Follow the "Admin Window Movement Fix" section above to set up Task Scheduler
-
-### Configuration Issues
-- **"Configuration file not found"**: Ensure `config.json` is in the same directory as `switch.ps1`
-- **"Failed to parse configuration file"**: Check that `config.json` is valid JSON syntax
-- **"Invalid JSON"**: Use a JSON validator to check your configuration file
-- **Settings not applying**: Restart the script after changing `config.json`
-
-### Audio Device Troubleshooting
-- **Device names must match exactly**: Check Windows Sound settings for exact device names
-- **Case sensitive**: Device names are case-sensitive in the configuration
-- **Special characters**: Escape quotes and special characters in device names
-- **Test audio switching**: Use NirCmd directly to test: `nircmd setdefaultsounddevice "YourDeviceName" 1`
-
-## Files Created
-
-The script creates two log files in the project root directory:
-- `SwapMonitorsLog.txt` - Tracks current monitor state
-- `SwapAudioLog.txt` - Tracks current audio device state
-
-## AutoHotkey v2 Setup and Usage
-
-The included `switch.ahk` script provides convenient keyboard shortcuts for monitor switching.
-
-### Prerequisites
-- **AutoHotkey v2**: Download from [autohotkey.com](https://www.autohotkey.com/)
-- **Installation**: Run the installer and ensure AutoHotkey v2 is properly installed
-- **Verification**: Right-click any `.ahk` file and verify "Run Script" appears in the context menu
-
-### Hotkeys
-- **Ctrl+Alt+M**: Toggle monitors and audio (primary shortcut)
-- **Ctrl+Alt+S**: Toggle monitors and audio (scheduled task)
-   - Feel free to edit these to your liking in `switch.ahk`
-
-### Features
-- **Background Execution**: Runs the PowerShell script without visible windows
-- **Visual Feedback**: Shows tooltip notifications when switching
-- **Single Instance**: Prevents multiple copies from running simultaneously
-- **Startup Confirmation**: Displays notification when script loads
-- **Modern Syntax**: Uses AutoHotkey v2 for better performance and compatibility
-
-### Running the AutoHotkey Script
-
-#### Method 1: Double-Click (Temporary)
-1. Navigate to the script folder
-2. Double-click `switch.ahk`
-3. Look for the tooltip notification confirming the script loaded
-4. The script will run until you close it or restart Windows
-
-#### Method 2: Command Line
-```cmd
-# Navigate to script directory
-cd "C:\path\to\monitor_switcher"
-
-# Run the script
-switch.ahk
-```
-
-#### Method 3: Right-Click Context Menu
-1. Right-click `switch.ahk`
-2. Select "Run Script" from the context menu
-
-### Running at Windows Startup
-
-#### Method 1: Startup Folder (Recommended)
-1. Press `Win + R`, type `shell:startup`, press Enter
-2. Right-click in the folder → New → Shortcut
-3. Browse to and select `switch.ahk`
-4. Name it "Monitor Switcher" and click Finish
-5. The script will now start automatically with Windows
-
-### Managing the AutoHotKey Script
-
-#### System Tray
-- **Icon**: Look for the AutoHotkey icon in the system tray
-- **Right-click**: Access context menu with options to pause, reload, or exit
-- **Exit**: Right-click tray icon → Exit to stop the script
-
-#### Script Management
-- **Reload**: Right-click tray icon → Reload Script (useful after editing)
-- **Pause**: Right-click tray icon → Pause Script (temporarily disable hotkeys)
-- **Edit**: Right-click tray icon → Edit Script (opens in default editor)
+- **`modes.desk` / `modes.couch`**: `monitor` is the primary for that setup. `audio` is
+  `{ "monitor": ID }` for audio that comes out of a monitor: HDMI/DP audio, or headphones plugged into
+  a monitor's jack. For a non-monitor device use `{ "id": ... }` or `{ "topology": ... }` from
+  `-ListAudio`; `{ "name": ... }` also works but Windows resets device names on driver installs.
+  `defaultPlace` applies to windows no rule matches: `keep` (preserve min/max/normal), `normal`,
+  `max`, `min`, `left`, `right`.
+- **`audioRoles`**: which defaults to set. `[0, 1, 2]` = console, multimedia, communications, which
+  is what the Settings app sets. Drop `2` to keep calls on one device.
+- **`fallbackMode`**: used when the current primary is neither desk nor couch.
+- **`rules`**: first match wins. `when` is `desk`, `couch`, or omitted for both. `match` takes any of
+  `process` (exe name), `class`, `title` (substring); all given keys must match. `monitor` defaults to
+  the new primary. `place` as above; `left`/`right` are halves of that monitor's work area, so they
+  survive resolution and scaling changes.
+- **`timing`**: `primaryTimeoutMs` (how long to wait for Windows to confirm the primary), `settleMs`
+  (pause after confirmation before windows move), `verifyDelayMs`.
+
+## When something does not move
+
+Read the log. Each failed window is listed with a reason:
+
+- `access denied: elevated window` — the run was not elevated. Register the task and use Ctrl+Alt+S.
+- `did not land on the destination` — the app repositions itself (some games, some UWP apps). Add a rule
+  or live with it.
+- `primary did not change ... within N ms` — nothing else was touched. MultiMonitorTool's readme notes
+  that on Windows 11 24H2 the cure is to change something in Display settings once, then retry.
+- `audio: nothing matches` — run `-ListAudio` and fix the `audio` entry.
+- `another switch is still running` — you pressed twice; the second press is ignored.
+
+## Why it identifies things the way it does
+
+The first version of this tool used monitor numbers, device names and a state file, and it
+"sometimes" broke. Each of those was the reason:
+
+- **Monitor numbers are not stable.** MultiMonitorTool reads `2` as `\\.\DISPLAY2`. GPU driver installs,
+  virtual-display drivers (Oculus, streaming tools) and hot-plugs all push those numbers up; a machine
+  that started at DISPLAY1–4 was at DISPLAY13–16 a year later, and every numbered command was a silent
+  no-op. EDID short IDs (`AOC2401`) come from the monitor itself and do not change.
+- **Audio device names are not stable either.** Windows recreates display-audio endpoints with stock
+  names on driver installs and leaves your renamed ones as "not present". A display-audio endpoint
+  shares a PnP container ID with its monitor, so "the audio of monitor X" is stable when the name is not.
+- **A state file drifts.** If any step fails, the file and reality disagree and the next press does the
+  wrong thing. Reading the live primary cannot drift.
+- **Fire-and-forget does not work here.** A primary change takes Windows a moment; moving windows before
+  it settles puts them in the wrong place. And `nircmd.exe` / `MultiMonitorTool.exe` are GUI-subsystem
+  programs, so a shell does not wait for them unless told to; chained commands raced each other.
+- **Maximizing everything to make minimized windows movable** destroys the layout. `SetWindowPlacement`
+  moves a minimized window's restore position without un-minimizing it.
+- **Elevated windows** can only be moved by an elevated process (UIPI). Hence the scheduled task, which
+  runs elevated without a UAC prompt.
 
 ## License
 
-This project is open source and available under the MIT License.
+MIT. MultiMonitorTool and NirCmd are freeware by Nir Sofer, redistributed as permitted.

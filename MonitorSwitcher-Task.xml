@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>Monitor and audio switcher with elevated privileges</Description>
+    <Description>Monitor Switcher (elevated, so admin windows move too). Register: schtasks /Create /XML MonitorSwitcher-Task.xml /TN MonitorSwitcher /F</Description>
   </RegistrationInfo>
   <Triggers />
   <Principals>
@@ -32,7 +32,7 @@
   <Actions Context="Author">
     <Exec>
       <Command>powershell.exe</Command>
-      <Arguments>-ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Users\dup\dev\monitor_switcher\switch.ps1"</Arguments>
+      <Arguments>-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Users\dup\dev\monitor_switcher\switch.ps1"</Arguments>
       <WorkingDirectory>C:\Users\dup\dev\monitor_switcher</WorkingDirectory>
     </Exec>
   </Actions>

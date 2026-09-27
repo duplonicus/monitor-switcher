@@ -1,12 +1,12 @@
 {
     "_readme": [
-        "Copy this file to config-v2.json and edit it. config-v2.json is git-ignored, so your setup stays yours.",
-        "Monitor IDs: run  .\\switch-v2.ps1 -DryRun  (it lists every monitor it can see before it complains about this template),",
+        "Copy this file to config.json and edit it. config.json is git-ignored, so your setup stays yours.",
+        "Monitor IDs: run  .\\switch.ps1 -DryRun  (it lists every monitor it can see before it complains about this template),",
         "             or   .\\MultiMonitorTool.exe /scomma monitors.csv  and read the 'Short Monitor ID' column.",
         "Use the Short Monitor ID (e.g. AOC2401), the serial number, or the \\\\.\\DISPLAYn name. Never a bare number:",
         "to MultiMonitorTool '2' means \\\\.\\DISPLAY2, and Windows renumbers those on driver installs and hot-plugs.",
         "Audio: { \"monitor\": ID } picks the audio that belongs to that monitor (HDMI/DP audio, or headphones in its jack).",
-        "       .\\switch-v2.ps1 -ListAudio shows every active playback device and which monitor it belongs to.",
+        "       .\\switch.ps1 -ListAudio shows every active playback device and which monitor it belongs to.",
         "       Other forms: { \"id\": ... } or { \"topology\": ... } from that listing, or { \"name\": ... } as a last resort",
         "       (Windows resets device names on driver installs)."
     ],
